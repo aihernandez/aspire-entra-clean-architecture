@@ -1,0 +1,17 @@
+# Normalize line endings on commit and check out per-platform. Without this, a repository shared
+# between Windows developers and Linux CI produces phantom whole-file diffs on every checkout.
+* text=auto
+
+# Scripts that must keep their platform's endings to be executable.
+*.ps1   text eol=crlf
+*.cmd   text eol=crlf
+*.bat   text eol=crlf
+*.sh    text eol=lf
+
+# Binary, never diffed or normalized.
+*.png   binary
+*.jpg   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.pdf   binary

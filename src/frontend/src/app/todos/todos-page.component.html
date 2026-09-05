@@ -1,0 +1,72 @@
+<div class="max-w-2xl">
+<h1 class="text-lg font-semibold text-slate-900">Todos</h1>
+<p class="mt-1 text-sm text-slate-500">Everything you need to get done, in one place.</p>
+
+<form (ngSubmit)="createTodo()" class="mt-5 flex gap-2">
+  <input
+    name="description"
+    [(ngModel)]="description"
+    placeholder="What needs doing?"
+    required
+    class="flex-1 rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+  />
+  <button
+    type="submit"
+    [disabled]="busy()"
+    class="shrink-0 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-default disabled:opacity-60"
+  >
+    Add
+  </button>
+</form>
+
+@if (error()) {
+  <p class="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{{ error() }}</p>
+}
+
+<div class="mt-6">
+  @if (loading()) {
+    <div class="flex flex-col gap-2">
+      @for (i of [1, 2, 3]; track i) {
+        <div class="h-14 animate-pulse rounded-xl bg-slate-100"></div>
+      }
+    </div>
+  } @else if (todos().length === 0) {
+    <div class="rounded-xl border border-dashed border-slate-300 py-10 text-center text-sm text-slate-500">
+      No todos yet — add your first one above.
+    </div>
+  } @else {
+    <ul class="flex flex-col gap-2">
+      @for (todo of todos(); track todo.id) {
+        <li class="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <button
+            type="button"
+            (click)="toggleComplete(todo)"
+            [attr.aria-label]="todo.isCompleted ? 'Mark as not done' : 'Mark as done'"
+            class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition"
+            [class]="todo.isCompleted ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-300 text-transparent'"
+          >
+            <svg viewBox="0 0 24 24" fill="none" class="h-3.5 w-3.5">
+              <path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+
+          <span class="min-w-0 flex-1 truncate text-sm" [class]="todo.isCompleted ? 'text-slate-400 line-through' : 'text-slate-900'">
+            {{ todo.description }}
+          </span>
+
+          <button
+            type="button"
+            (click)="deleteTodo(todo)"
+            aria-label="Delete todo"
+            class="shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+          >
+            <svg viewBox="0 0 24 24" fill="none" class="h-4 w-4">
+              <path d="M6 7h12M9.5 7V5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v2m-8 0 .6 12.1a1.5 1.5 0 0 0 1.5 1.4h5.8a1.5 1.5 0 0 0 1.5-1.4L18 7" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</div>
+</div>

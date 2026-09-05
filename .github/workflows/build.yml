@@ -1,0 +1,78 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+env:
+  DOTNET_VERSION: "10.x"
+  NODE_VERSION: "20.19"
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore CleanArchitecture.sln
+
+      - name: Build
+        run: dotnet build CleanArchitecture.sln --configuration Release --no-restore
+
+      # The integration suite starts a throwaway SQL Server container through Testcontainers, so it
+      # needs a Docker daemon — present on ubuntu-latest runners, absent on macOS ones.
+      - name: Test
+        run: dotnet test CleanArchitecture.sln --configuration Release --no-restore --no-build --verbosity normal
+
+      - name: Publish
+        run: dotnet publish CleanArchitecture.sln --configuration Release --no-restore --no-build
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/frontend
+        run: npm ci
+
+      # The Kiota client is generated output and gitignored, so a fresh checkout has none. Angular
+      # cannot compile without it — generating here is also what proves the committed backend
+      # contract and the frontend still agree.
+      - name: Generate the API client
+        shell: pwsh
+        run: ./scripts/generate-api-client.ps1
+
+      - name: Build
+        working-directory: src/frontend
+        run: npm run build
+
+      - name: Test
+        working-directory: src/frontend
+        run: npx ng test --watch=false --browsers=ChromeHeadless

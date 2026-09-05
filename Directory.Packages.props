@@ -1,0 +1,76 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- Lets the PackageVersion pins below (SSH.NET, Microsoft.OpenApi) override transitive
+         dependencies too, not just direct PackageReferences. -->
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+  <!--.NET 10 packages. Most of them will work on .NET 8/9. If you need to, make the updates here individually.-->
+  <ItemGroup>
+    <!-- Static code analysis -->
+    <PackageVersion Include="SonarAnalyzer.CSharp" Version="10.27.0.140913" />
+    <!-- Aspire hosting -->
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.5.1" />
+    <PackageVersion Include="Aspire.Hosting.SqlServer" Version="13.5.1" />
+    <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.5.2" />
+    <!-- MailPit container integration: a local SMTP catcher with a web UI, used in Development
+         so outgoing email can be sent for real (via MailKit) without a real mail provider. -->
+    <PackageVersion Include="CommunityToolkit.Aspire.Hosting.MailPit" Version="13.4.0" />
+    <!-- Application -->
+    <PackageVersion Include="Scrutor" Version="7.0.0" />
+    <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Hybrid" Version="10.7.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.11" />
+    <!-- Infrastructure -->
+    <PackageVersion Include="AspNetCore.HealthChecks.SqlServer" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
+    <!-- Entra ID: validates access tokens issued by the Microsoft identity platform and exposes
+         the claim helpers (GetObjectId/GetTenantId) that back the (oid, tid) identity key. -->
+    <PackageVersion Include="Microsoft.Identity.Web" Version="4.14.2" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.11" />
+    <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
+    <!-- Email: MailKit (robust, RFC-compliant SMTP client) + Scriban (safe, lightweight HTML
+         template rendering — no Razor runtime-compilation dependency needed in a class library). -->
+    <PackageVersion Include="MailKit" Version="4.17.0" />
+    <PackageVersion Include="Scriban" Version="7.2.6" />
+    <!-- Web.Api -->
+    <PackageVersion Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <!-- Transitive pin: Microsoft.AspNetCore.OpenApi/Scalar.AspNetCore pull Microsoft.OpenApi 2.0.0, which has a
+         known high-severity DoS advisory (GHSA-v5pm-xwqc-g5wc, stack overflow via circular schema refs). Pinned
+         to the lowest fixed 2.x release to stay API-compatible with Microsoft.AspNetCore.OpenApi 10.0.9. -->
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
+    <PackageVersion Include="Scalar.AspNetCore" Version="2.17.1" />
+    <!-- Aspire ServiceDefaults -->
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.7.0" />
+    <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.7.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.16.0" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.16.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.16.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.1" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.SqlClient" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.16.0-beta.1" />
+    <!-- Tests -->
+    <PackageVersion Include="Shouldly" Version="4.3.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
+    <PackageVersion Include="NetArchTest.Rules" Version="1.3.2" />
+    <PackageVersion Include="NSubstitute" Version="5.3.0" />
+    <PackageVersion Include="Testcontainers.MsSql" Version="4.14.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageVersion Include="coverlet.collector" Version="10.0.1" />
+    <!-- Transitive pin: Testcontainers pulls SSH.NET for optional SSH tunneling to the Docker daemon.
+         Pinned explicitly to avoid the NU1903 high-severity advisory on SSH.NET <= 2025.1.0 (path traversal, GHSA-q939-rpr3-3284). -->
+    <PackageVersion Include="SSH.NET" Version="2026.0.0" />
+  </ItemGroup>
+</Project>

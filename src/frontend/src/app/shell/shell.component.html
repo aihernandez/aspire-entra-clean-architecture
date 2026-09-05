@@ -1,0 +1,78 @@
+<div class="min-h-dvh bg-slate-50 lg:flex">
+  @if (sidebarOpen()) {
+    <div
+      class="fixed inset-0 z-30 bg-slate-900/60 lg:hidden"
+      (click)="sidebarOpen.set(false)"
+    ></div>
+  }
+
+  <aside
+    class="fixed inset-y-0 left-0 z-40 flex w-64 -translate-x-full flex-col bg-slate-900 transition-transform duration-200 ease-out lg:static lg:z-auto lg:translate-x-0"
+    [class.translate-x-0]="sidebarOpen()"
+  >
+    <div class="flex h-16 shrink-0 items-center gap-2 px-5 text-white">
+      <svg viewBox="0 0 24 24" fill="none" class="h-6 w-6 text-indigo-400">
+        <path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <span class="font-semibold tracking-tight">Flowdo</span>
+    </div>
+
+    <nav class="flex-1 space-y-1 px-3 py-4">
+      @for (item of navItems(); track item.path) {
+        <a
+          [routerLink]="item.path"
+          routerLinkActive="bg-slate-800 text-white"
+          (click)="sidebarOpen.set(false)"
+          class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-slate-800 hover:text-white"
+        >
+          <svg viewBox="0 0 24 24" fill="none" class="h-5 w-5 shrink-0">
+            <path [attr.d]="item.icon" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          {{ item.label }}
+        </a>
+      }
+    </nav>
+
+    <div class="border-t border-slate-800 p-3">
+      <div class="flex items-center gap-3 rounded-lg px-2 py-2">
+        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-sm font-semibold text-white">
+          {{ initial() }}
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-sm font-medium text-white">{{ email() }}</p>
+        </div>
+        <button
+          type="button"
+          (click)="logout()"
+          aria-label="Log out"
+          class="shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+        >
+          <svg viewBox="0 0 24 24" fill="none" class="h-5 w-5">
+            <path d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="flex min-h-dvh flex-1 flex-col lg:min-w-0">
+    <header class="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-4 border-b border-slate-200 bg-white/90 px-4 backdrop-blur lg:px-8">
+      <button
+        type="button"
+        (click)="sidebarOpen.set(true)"
+        aria-label="Open menu"
+        class="-ml-1 rounded-md p-2 text-slate-500 hover:bg-slate-100 lg:hidden"
+      >
+        <svg viewBox="0 0 24 24" fill="none" class="h-5 w-5">
+          <path d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+    </header>
+
+    <main class="flex-1 px-4 py-6 lg:px-8 lg:py-8">
+      <div class="mx-auto max-w-5xl">
+        <router-outlet />
+      </div>
+    </main>
+  </div>
+</div>
