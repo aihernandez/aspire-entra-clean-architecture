@@ -26,7 +26,7 @@
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.11" />
     <!-- Infrastructure -->
     <PackageVersion Include="AspNetCore.HealthChecks.SqlServer" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
     <!-- Entra ID: validates access tokens issued by the Microsoft identity platform and exposes
          the claim helpers (GetObjectId/GetTenantId) that back the (oid, tid) identity key. -->
     <PackageVersion Include="Microsoft.Identity.Web" Version="4.14.2" />
