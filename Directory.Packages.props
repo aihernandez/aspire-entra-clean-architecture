@@ -12,7 +12,7 @@
     <!-- Aspire hosting -->
     <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.5.3" />
     <PackageVersion Include="Aspire.Hosting.SqlServer" Version="13.5.1" />
-    <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.5.2" />
+    <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.5.3" />
     <!-- MailPit container integration: a local SMTP catcher with a web UI, used in Development
          so outgoing email can be sent for real (via MailKit) without a real mail provider. -->
     <PackageVersion Include="CommunityToolkit.Aspire.Hosting.MailPit" Version="13.4.0" />
