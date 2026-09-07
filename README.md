@@ -57,7 +57,7 @@ Entra ID, or MailKit directly (`NetArchTest`-enforced in `tests/ArchitectureTest
 ```mermaid
 flowchart TD
     WebApi["Web.Api<br/>Minimal API endpoints, middleware, Program.cs"]
-    Infra["Infrastructure<br/>EF Core + SQL Server, Entra ID (Microsoft.Identity.Web),<br/>JIT provisioning, Email (MailKit/Scriban), Authorization, DomainEvents"]
+    Infra["Infrastructure<br/>EF Core + SQL Server, Entra ID (Microsoft.Identity.Web),<br/>JIT provisioning, Email (MailKit/Razor), Authorization, DomainEvents"]
     App["Application<br/>CQRS handlers, FluentValidation,<br/>abstractions (IApplicationDbContext, IUserContext, ...)"]
     Domain["Domain<br/>Entities, domain events (Todos, Users)"]
     Shared["SharedKernel<br/>Result/Error, Entity, IDomainEvent, PermissionNames, RoleNames"]
@@ -115,9 +115,10 @@ flowchart LR
   SCIM endpoint can be added later without reshaping the model.
 - **Runs with no Azure tenant** — a Development-only authentication scheme stands in for Entra ID so
   a fresh clone boots from one command. Startup fails if it is ever configured elsewhere.
-- **Email** — MailKit SMTP sender + Scriban HTML templating with branded, layout-based templates
-  (currently the welcome message, sent when a person is provisioned on first sign-in); routes to
-  **MailPit** in `Development` so email actually sends without a real provider.
+- **Email** — MailKit SMTP sender + precompiled, strongly typed Razor components with shared
+  branding and layout (currently the welcome message, sent when a person is provisioned on first
+  sign-in); routes to **MailPit** in `Development` so email actually sends without a real provider.
+  See ["Email templates (Razor)"](#email-templates-razor) below for how the pieces fit together.
 - **HybridCache** for fast, unified caching with invalidation.
 - **Web API concerns** — Minimal API endpoints (auto-discovered), rate limiting (global +
   stricter auth policy, 429s shaped as `ProblemDetails` so generated clients never special-case
@@ -199,6 +200,67 @@ If you change the `Domain`/`Infrastructure` model, add a new migration:
 
 ```bash
 dotnet ef migrations add <MigrationName> --project src/backend/Infrastructure --startup-project src/backend/Web.Api
+```
+
+### Frontend: calling an endpoint
+
+Angular calls the API through the Kiota-generated client — typed, no hand-written HTTP:
+
+```typescript
+private readonly apiClient = inject(ApiClientService).client;
+
+async loadTodos(userId: string) {
+  const todos = await this.apiClient.todos.get({ queryParameters: { userId } });
+  // todos: TodoResponse[]
+}
+```
+
+### Backend: a Minimal API endpoint
+
+Auto-discovered, documented in Scalar at `/scalar`:
+
+```csharp
+// Web.Api/Endpoints/Todos/GetById.cs
+internal sealed class GetById : IEndpoint
+{
+    public void MapEndpoint(IEndpointRouteBuilder app)
+    {
+        app.MapGet("todos/{id:guid}", async (
+            Guid id,
+            IQueryHandler<GetTodoByIdQuery, TodoResponse> handler,
+            CancellationToken cancellationToken) =>
+        {
+            Result<TodoResponse> result = await handler.Handle(new GetTodoByIdQuery(id), cancellationToken);
+
+            return result.Match(Results.Ok, CustomResults.Problem);
+        })
+        .Produces<TodoResponse>()
+        .ProducesProblemResponses()
+        .WithTags(Tags.Todos)
+        .HasPermission(PermissionNames.TodosAccess);
+    }
+}
+```
+
+### Email templates (Razor)
+
+Email bodies are Razor components rendered to HTML via `HtmlRenderer`, sent through
+`IEmailService<TModel>`:
+
+```csharp
+public sealed class SendWelcomeEmailOnUserProvisioned(
+    IEmailService<WelcomeEmailModel> emailService)
+    : IDomainEventHandler<UserProvisionedDomainEvent>
+{
+    public async Task Handle(UserProvisionedDomainEvent domainEvent, CancellationToken ct)
+    {
+        await emailService.SendAsync(
+            toEmail: "ada@example.com",
+            toName: "Ada Lovelace",
+            model: new WelcomeEmailModel(FirstName: "Ada"),
+            cancellationToken: ct);
+    }
+}
 ```
 
 ### Regenerating the API client

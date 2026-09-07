@@ -202,9 +202,9 @@ public static class DependencyInjection
         services.Configure<EmailBrandingOptions>(configuration.GetSection(EmailBrandingOptions.SectionName));
         services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
 
-        services.AddSingleton<EmailTemplateEngine>();
-        services.AddScoped<IEmailService, EmailService>();
-
+        services.AddScoped(typeof(IEmailService<>), typeof(EmailService<>));
+        services.AddScoped<IEmailBodyRenderer<WelcomeEmailModel>,
+            RazorEmailBodyRenderer<WelcomeEmail, WelcomeEmailModel>>();
         services.AddScoped<IEmailTemplate<WelcomeEmailModel>, WelcomeEmailTemplate>();
 
         // Local dev: Aspire wires up a "mailpit" connection string (endpoint=smtp://host:port)
