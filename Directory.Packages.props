@@ -15,7 +15,7 @@
     <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.5.2" />
     <!-- MailPit container integration: a local SMTP catcher with a web UI, used in Development
          so outgoing email can be sent for real (via MailKit) without a real mail provider. -->
-    <PackageVersion Include="CommunityToolkit.Aspire.Hosting.MailPit" Version="13.4.0" />
+    <PackageVersion Include="CommunityToolkit.Aspire.Hosting.MailPit" Version="13.5.0" />
     <!-- Application -->
     <PackageVersion Include="Scrutor" Version="7.0.0" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
