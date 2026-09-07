@@ -14,8 +14,7 @@ namespace Application.Users.Provisioned;
 /// </summary>
 internal sealed class SendWelcomeEmailOnUserProvisioned(
     IApplicationDbContext context,
-    IEmailService emailService,
-    IEmailTemplate<WelcomeEmailModel> template,
+    IEmailService<WelcomeEmailModel> emailService,
     ILogger<SendWelcomeEmailOnUserProvisioned> logger)
     : IDomainEventHandler<Domain.Users.UserProvisionedDomainEvent>
 {
@@ -43,7 +42,6 @@ internal sealed class SendWelcomeEmailOnUserProvisioned(
         await emailService.SendAsync(
             recipient.Email,
             $"{recipient.FirstName} {recipient.LastName}".Trim(),
-            template,
             new WelcomeEmailModel(recipient.FirstName),
             cancellationToken);
     }

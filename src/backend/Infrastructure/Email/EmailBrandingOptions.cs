@@ -3,7 +3,7 @@ namespace Infrastructure.Email;
 /// <summary>
 /// The "common elements" every email shares — bound from "Email:Branding". Change these once and
 /// every email template picks up the new name/color, since they all render inside the same
-/// _Layout.html.
+/// <c>EmailLayout.razor</c> component.
 /// </summary>
 public sealed class EmailBrandingOptions
 {

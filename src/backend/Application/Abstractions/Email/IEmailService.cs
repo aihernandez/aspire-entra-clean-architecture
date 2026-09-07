@@ -1,16 +1,15 @@
 namespace Application.Abstractions.Email;
 
 /// <summary>
-/// Combines an <see cref="IEmailTemplate{TModel}"/> (content) with the registered
-/// <see cref="IEmailSender"/> (transport) to render and send one email. This is the entry point
-/// Application handlers use — they never talk to <see cref="IEmailSender"/> directly.
+/// Renders and sends the one template registered for <typeparamref name="TModel"/>. Application
+/// handlers supply only the recipient and model; template selection, rendering, subject, and
+/// transport remain encapsulated behind this boundary.
 /// </summary>
-public interface IEmailService
+public interface IEmailService<in TModel> where TModel : notnull
 {
-    Task SendAsync<TModel>(
+    Task SendAsync(
         string toEmail,
         string toName,
-        IEmailTemplate<TModel> template,
         TModel model,
         CancellationToken cancellationToken = default);
 }
