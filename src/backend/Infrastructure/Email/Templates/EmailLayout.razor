@@ -1,9 +1,12 @@
+@inject IOptions<EmailBrandingOptions> BrandingOptions
+@inject IDateTimeProvider Clock
+
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{{ AppName }}</title>
+  <title>@BrandingOptions.Value.AppName</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f4f5f7;font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7;padding:32px 0;">
@@ -11,20 +14,20 @@
       <td align="center">
         <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;max-width:480px;width:100%;">
           <tr>
-            <td style="background-color:{{ PrimaryColor }};padding:24px 32px;">
-              <span style="color:#ffffff;font-size:18px;font-weight:600;">{{ AppName }}</span>
+            <td style="background-color:@BrandingOptions.Value.PrimaryColor;padding:24px 32px;">
+              <span style="color:#ffffff;font-size:18px;font-weight:600;">@BrandingOptions.Value.AppName</span>
             </td>
           </tr>
           <tr>
             <td style="padding:32px;color:#1f2937;font-size:14px;line-height:1.6;">
-              {{ Content }}
+              @ChildContent
             </td>
           </tr>
           <tr>
             <td style="padding:20px 32px;background-color:#f9fafb;color:#9ca3af;font-size:12px;">
               <p style="margin:0;">
-                &copy; {{ Year }} {{ AppName }}. Need help? Contact
-                <a href="mailto:{{ SupportEmail }}" style="color:#6b7280;">{{ SupportEmail }}</a>.
+                &copy; @Clock.UtcNow.Year @BrandingOptions.Value.AppName. Need help? Contact
+                <a href="mailto:@BrandingOptions.Value.SupportEmail" style="color:#6b7280;">@BrandingOptions.Value.SupportEmail</a>.
               </p>
             </td>
           </tr>
@@ -34,3 +37,9 @@
   </table>
 </body>
 </html>
+
+@code {
+    [Parameter]
+    [EditorRequired]
+    public RenderFragment ChildContent { get; set; } = default!;
+}

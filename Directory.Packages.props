@@ -10,9 +10,9 @@
     <!-- Static code analysis -->
     <PackageVersion Include="SonarAnalyzer.CSharp" Version="10.27.0.140913" />
     <!-- Aspire hosting -->
-    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.5.1" />
-    <PackageVersion Include="Aspire.Hosting.SqlServer" Version="13.5.1" />
-    <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.5.2" />
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.5.3" />
+    <PackageVersion Include="Aspire.Hosting.SqlServer" Version="13.5.3" />
+    <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.5.3" />
     <!-- MailPit container integration: a local SMTP catcher with a web UI, used in Development
          so outgoing email can be sent for real (via MailKit) without a real mail provider. -->
     <PackageVersion Include="CommunityToolkit.Aspire.Hosting.MailPit" Version="13.5.0" />
@@ -31,12 +31,9 @@
          the claim helpers (GetObjectId/GetTenantId) that back the (oid, tid) identity key. -->
     <PackageVersion Include="Microsoft.Identity.Web" Version="4.14.2" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.11" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
-    <!-- Email: MailKit (robust, RFC-compliant SMTP client) + Scriban (safe, lightweight HTML
-         template rendering — no Razor runtime-compilation dependency needed in a class library). -->
+    <!-- Email transport. Razor email components are precompiled by the Razor SDK. -->
     <PackageVersion Include="MailKit" Version="4.17.0" />
-    <PackageVersion Include="Scriban" Version="7.2.6" />
     <!-- Web.Api -->
     <PackageVersion Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />

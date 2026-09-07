@@ -4,11 +4,17 @@ using Microsoft.Extensions.Options;
 
 namespace Infrastructure.Email.Templates;
 
-internal sealed class WelcomeEmailTemplate(EmailTemplateEngine engine, IOptions<EmailBrandingOptions> branding)
+internal sealed class WelcomeEmailTemplate(
+    IEmailBodyRenderer<WelcomeEmailModel> renderer,
+    IOptions<EmailBrandingOptions> branding)
     : IEmailTemplate<WelcomeEmailModel>
 {
-    public string Subject => $"Welcome to {branding.Value.AppName}!";
+    public async Task<RenderedEmail> RenderAsync(
+        WelcomeEmailModel model,
+        CancellationToken cancellationToken = default)
+    {
+        string htmlBody = await renderer.RenderAsync(model, cancellationToken);
 
-    public Task<string> RenderAsync(WelcomeEmailModel model, CancellationToken cancellationToken = default) =>
-        Task.FromResult(engine.Render("Welcome", model));
+        return new RenderedEmail($"Welcome to {branding.Value.AppName}!", htmlBody);
+    }
 }
