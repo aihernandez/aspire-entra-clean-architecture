@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <ItemGroup>
     <PackageReference Include="AspNetCore.HealthChecks.SqlServer" />
@@ -6,10 +6,12 @@
     <PackageReference Include="Microsoft.Identity.Web" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
-    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
     <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="MailKit" />
-    <PackageReference Include="Scriban" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>
@@ -19,10 +21,6 @@
   <ItemGroup>
 	<InternalsVisibleTo Include="ArchitectureTests" />
 	<InternalsVisibleTo Include="Infrastructure.UnitTests" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="Email\Templates\*.html" />
   </ItemGroup>
 
 </Project>
