@@ -11,7 +11,7 @@
     <PackageVersion Include="SonarAnalyzer.CSharp" Version="10.27.0.140913" />
     <!-- Aspire hosting -->
     <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.5.1" />
-    <PackageVersion Include="Aspire.Hosting.SqlServer" Version="13.5.1" />
+    <PackageVersion Include="Aspire.Hosting.SqlServer" Version="13.5.3" />
     <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.5.2" />
     <!-- MailPit container integration: a local SMTP catcher with a web UI, used in Development
          so outgoing email can be sent for real (via MailKit) without a real mail provider. -->
