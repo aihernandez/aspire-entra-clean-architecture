@@ -74,9 +74,27 @@ don't copy that one, it predates this convention.
 
 ## 4. Component, route, and form validation
 
-- Standalone component, `signal()` for state (`loading`, `busy`, `error`, plus the data itself),
-  `inject()` for DI — no `NgModule`, no constructor injection. Copy the shape of
-  `todos/todos-page.component.ts` + `.html`.
+- Generate the files with the Angular CLI — don't write them by hand. `angular.json` sets the
+  schematic defaults so the output matches the existing files: `{name}.component.ts` with class
+  `{Name}Component`, flat in the feature folder, no stylesheet (Tailwind lives in the template):
+
+  ```bash
+  cd src/frontend
+  npx ng generate component {feature}/{feature}-page --dry-run   # check the file list first
+  npx ng generate component {feature}/{feature}-page
+  ```
+
+  The same applies to the other building blocks — `npx ng generate service core/{name}`,
+  `guard`, `interceptor`, `pipe`, `directive`, `resolver` — which come out as `{name}.service.ts`,
+  `{name}.guard.ts`, and so on. Always go through `npx ng` so the workspace's CLI version runs,
+  not a global one. Don't try packages with `ng add`: its `--dry-run` still installs the package
+  into `package.json` before it finds out whether the package has schematics.
+- Fill the generated component in: standalone, `signal()` for state (`loading`, `busy`, `error`,
+  plus the data itself), `inject()` for DI — no `NgModule`, no constructor injection. Follow the
+  shape of `todos/todos-page.component.ts` + `.html`, but take error handling from step 3.
+- Keep the generated `.spec.ts`. It creates the component through `TestBed`, and passes as is —
+  even when the page calls the API in `ngOnInit` — because the services it injects are
+  `providedIn: 'root'`. Extend it with behavior tests when the page has logic worth pinning down.
 - Add a lazy route in `app.routes.ts`: `loadComponent: () => import('./{feature}/{feature}-page.component').then(m => m.{Feature}PageComponent)`.
   Nest it under the existing `canActivate: [authGuard]` parent route — every route does, since
   there are no unauthenticated pages: with Entra ID the sign-in screen is Microsoft's, and the
@@ -93,8 +111,9 @@ don't copy that one, it predates this convention.
 ```bash
 cd src/frontend
 npm run build
+npx ng test --watch=false --browsers=ChromeHeadless
 ```
 
-There is currently no automated test coverage for Angular components in this repo (see the
-`add-tests` skill for how to add some) — a successful build plus a manual click-through via
-`dotnet run --project src/backend/Aspire.AppHost` is the available verification until then.
+The generated specs only prove that each component can be created (see the `add-tests` skill for
+behavior tests) — a successful build and test run plus a manual click-through via
+`dotnet run --project src/backend/Aspire.AppHost` is the available verification.
