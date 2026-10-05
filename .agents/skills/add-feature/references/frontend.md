@@ -92,6 +92,11 @@ don't copy that one, it predates this convention.
 - Fill the generated component in: standalone, `signal()` for state (`loading`, `busy`, `error`,
   plus the data itself), `inject()` for DI — no `NgModule`, no constructor injection. Follow the
   shape of `todos/todos-page.component.ts` + `.html`, but take error handling from step 3.
+- Angular 22 makes `OnPush` the default, so a generated component has no `changeDetection` line;
+  leave it that way — state in signals is what `OnPush` needs. The existing components carry
+  `changeDetection: ChangeDetectionStrategy.Eager`, added by the v22 migration to keep their old
+  behavior; don't copy it into new ones. Generated services use `@Service()`, Angular 22's
+  shorthand for `@Injectable({ providedIn: 'root' })`.
 - Keep the generated `.spec.ts`. It creates the component through `TestBed`, and passes as is —
   even when the page calls the API in `ngOnInit` — because the services it injects are
   `providedIn: 'root'`. Extend it with behavior tests when the page has logic worth pinning down.
