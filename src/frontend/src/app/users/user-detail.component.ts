@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiClientService } from '../core/api-client.provider';
 import { extractErrorMessage } from '../core/api-error';
@@ -18,6 +18,7 @@ interface UserDetail {
 @Component({
   selector: 'app-user-detail',
   imports: [RouterLink],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="space-y-6">
       <a routerLink="/users" class="text-sm text-indigo-600 hover:underline">&larr; Back to users</a>

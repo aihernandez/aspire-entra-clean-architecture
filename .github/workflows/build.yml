@@ -10,7 +10,7 @@ on:
 
 env:
   DOTNET_VERSION: "10.x"
-  NODE_VERSION: "20.19"
+  NODE_VERSION: "24"
 
 jobs:
   backend:

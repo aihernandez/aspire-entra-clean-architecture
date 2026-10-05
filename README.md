@@ -2,7 +2,7 @@
 
 A full-stack, pragmatic Clean Architecture starter for **internal enterprise applications**: a
 **.NET 10** backend orchestrated by **.NET Aspire**, with **SQL Server** for storage,
-**Microsoft Entra ID** for authentication and authorization, and an **Angular 20** frontend talking
+**Microsoft Entra ID** for authentication and authorization, and an **Angular 22** frontend talking
 to it through a typed client generated straight from the API's OpenAPI document. One command boots
 the whole stack — database, mail catcher, API, and frontend — with real telemetry flowing into the
 Aspire dashboard, **and with no Azure tenant required to run it**.
@@ -13,7 +13,7 @@ Aspire dashboard, **and with no Azure tenant required to run it**.
   <img alt=".NET Aspire" src="https://img.shields.io/badge/.NET_Aspire-13.5-512BD4?style=for-the-badge&logo=dotnet&logoColor=white">
   <img alt="ASP.NET Core" src="https://img.shields.io/badge/ASP.NET_Core-Minimal_APIs-512BD4?style=for-the-badge&logo=dotnet&logoColor=white">
   <br>
-  <img alt="Angular" src="https://img.shields.io/badge/Angular-20-DD0031?style=for-the-badge&logo=angular&logoColor=white">
+  <img alt="Angular" src="https://img.shields.io/badge/Angular-22-DD0031?style=for-the-badge&logo=angular&logoColor=white">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white">
   <img alt="RxJS" src="https://img.shields.io/badge/RxJS-7.8-B7178C?style=for-the-badge&logo=reactivex&logoColor=white">
   <img alt="Tailwind CSS" src="https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white">
@@ -131,7 +131,7 @@ flowchart LR
   container (`IntegrationTests`, via Testcontainers).
 
 **Frontend** (`src/frontend/`)
-- **Angular 20**, standalone components (no `NgModule`s), Tailwind CSS 4 for styling.
+- **Angular 22**, standalone components (no `NgModule`s), Tailwind CSS 4 for styling.
 - **MSAL** (`@azure/msal-browser`) sign-in with Authorization Code + PKCE. There are no auth pages:
   sign-in, password reset and account recovery are Microsoft's screens. Token acquisition, caching
   and renewal are MSAL's job, attached to outgoing calls in exactly one place
@@ -145,7 +145,7 @@ flowchart LR
 
 ## Getting started
 
-**Prerequisites:** .NET 10 SDK, Node.js 20.19+ (Angular 20 requirement), Docker Desktop (for the
+**Prerequisites:** .NET 10 SDK, Node.js 22.22.3+ or 24.15+ (Angular 22 requirement), Docker Desktop (for the
 SQL Server and MailPit containers Aspire spins up).
 
 **Give it room.** SQL Server 2025 in a container, the Docker VM, the API and the Angular dev server

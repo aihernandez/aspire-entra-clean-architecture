@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CurrentUserService } from '../core/current-user.service';
 import { AuthService } from '../core/auth.service';
 
@@ -13,6 +13,7 @@ import { AuthService } from '../core/auth.service';
 @Component({
   selector: 'app-profile-page',
   imports: [],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="space-y-6">
       <header>

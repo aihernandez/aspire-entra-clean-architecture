@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { CurrentUserService } from '../core/current-user.service';
@@ -32,6 +32,7 @@ const NAV_ITEMS: NavItem[] = [
 @Component({
   selector: 'app-shell',
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './shell.component.html'
 })
 export class ShellComponent {

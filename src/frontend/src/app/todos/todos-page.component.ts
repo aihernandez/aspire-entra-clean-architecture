@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiClientService } from '../core/api-client.provider';
 import { CurrentUserService } from '../core/current-user.service';
@@ -8,6 +8,7 @@ import type { TodoResponse } from '../api-client/models';
 @Component({
   selector: 'app-todos-page',
   imports: [FormsModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './todos-page.component.html'
 })
 export class TodosPageComponent implements OnInit {

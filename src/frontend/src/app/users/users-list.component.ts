@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ApiClientService } from '../core/api-client.provider';
 import { extractErrorMessage } from '../core/api-error';
@@ -24,6 +24,7 @@ interface UserRow {
 @Component({
   selector: 'app-users-list',
   imports: [RouterLink],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="space-y-6">
       <header>
