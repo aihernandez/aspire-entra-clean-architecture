@@ -64,7 +64,7 @@ flowchart TD
 
     WebApi --> App
     WebApi --> Infra
-    Infra -. implements .-> App
+    Infra -.-> App
     App --> Domain
     App --> Shared
     Domain --> Shared
@@ -88,10 +88,10 @@ flowchart LR
     Host --> SQL["SQL Server 2025 container<br/>:1433"]
     Host --> Mail["MailPit container<br/>SMTP catcher, port assigned by Aspire"]
     Host --> API["Web.Api<br/>:5000 · Scalar docs at /scalar"]
-    Host --> NG["Angular dev server<br/>ng serve · :4200"]
-    NG -- "typed Kiota client" --> API
+    Host --> NG["Angular dev server<br/>ng serve · :4200,<br/>calls API via typed Kiota client"]
+    NG -.-> API
     API --> SQL
-    API -- "SMTP" --> Mail
+    API -.-> Mail
 ```
 
 ## What's included
