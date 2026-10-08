@@ -51,8 +51,16 @@ public sealed class UserQueryHandlerTests : BaseHandlerTest
         result.Value.TotalCount.ShouldBe(1);
     }
 
-    [Fact]
-    public async Task GetUsers_Should_ClampAnUnreasonablePageSize()
+    [Theory]
+    [InlineData(0, 20)]
+    [InlineData(-1, 20)]
+    [InlineData(int.MinValue, 20)]
+    [InlineData(1, 0)]
+    [InlineData(1, -1)]
+    [InlineData(1, 101)]
+    [InlineData(1, int.MaxValue)]
+    [InlineData(int.MaxValue, 20)]
+    public async Task GetUsers_Should_RejectInvalidPagination(int pageNumber, int pageSize)
     {
         // Arrange
         await using TestDbContext context = CreateDbContext();
@@ -61,12 +69,54 @@ public sealed class UserQueryHandlerTests : BaseHandlerTest
 
         var handler = new GetUsersQueryHandler(context);
 
-        // Act — an unbounded page size is a denial-of-service invitation on a real directory.
         Result<PagedResponse<UserResponse>> result =
-            await handler.Handle(new GetUsersQuery(PageNumber: 1, PageSize: 100_000), CancellationToken.None);
+            await handler.Handle(new GetUsersQuery(pageNumber, pageSize), CancellationToken.None);
 
         // Assert
-        result.Value.PageSize.ShouldBe(20);
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBe(UserErrors.InvalidPagination);
+        result.Error.Type.ShouldBe(ErrorType.Validation);
+    }
+
+    [Theory]
+    [InlineData(1, 1, 1)]
+    [InlineData(1, 100, 1)]
+    [InlineData(2, 1, 0)]
+    [InlineData(int.MaxValue, 1, 0)]
+    public async Task GetUsers_Should_AcceptValidPageBoundaries(int pageNumber, int pageSize, int expectedCount)
+    {
+        await using TestDbContext context = CreateDbContext();
+        context.Users.Add(NewUser("Solo"));
+        await context.SaveChangesAsync();
+        var handler = new GetUsersQueryHandler(context);
+
+        Result<PagedResponse<UserResponse>> result =
+            await handler.Handle(new GetUsersQuery(pageNumber, pageSize), CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Items.Count.ShouldBe(expectedCount);
+        result.Value.TotalCount.ShouldBe(1);
+        result.Value.PageNumber.ShouldBe(pageNumber);
+        result.Value.PageSize.ShouldBe(pageSize);
+    }
+
+    [Fact]
+    public async Task GetUsers_Should_BreakNameTiesById_AcrossPages()
+    {
+        await using TestDbContext context = CreateDbContext();
+        User first = NewUser("Same");
+        first.Id = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        User second = NewUser("Same");
+        second.Id = Guid.Parse("00000000-0000-0000-0000-000000000002");
+        context.Users.AddRange(second, first);
+        await context.SaveChangesAsync();
+        var handler = new GetUsersQueryHandler(context);
+
+        Result<PagedResponse<UserResponse>> pageOne = await handler.Handle(new GetUsersQuery(1, 1), CancellationToken.None);
+        Result<PagedResponse<UserResponse>> pageTwo = await handler.Handle(new GetUsersQuery(2, 1), CancellationToken.None);
+
+        pageOne.Value.Items.ShouldHaveSingleItem().Id.ShouldBe(first.Id);
+        pageTwo.Value.Items.ShouldHaveSingleItem().Id.ShouldBe(second.Id);
     }
 
     [Fact]

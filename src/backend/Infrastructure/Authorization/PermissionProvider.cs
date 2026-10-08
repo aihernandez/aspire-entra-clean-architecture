@@ -11,7 +11,7 @@ namespace Infrastructure.Authorization;
 /// in code, versioned alongside the code that enforces it (EntraIdMigration.md, D4/D5).
 /// </para>
 /// </summary>
-internal static class PermissionProvider
+public static class PermissionProvider
 {
     public static HashSet<string> GetForRoles(IReadOnlyCollection<string> roles)
     {

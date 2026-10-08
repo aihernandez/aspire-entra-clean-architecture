@@ -13,7 +13,7 @@ import type { TodoResponse } from '../api-client/models';
 })
 export class TodosPageComponent implements OnInit {
   private readonly apiClient = inject(ApiClientService).client;
-  private readonly currentUser = inject(CurrentUserService);
+  protected readonly currentUser = inject(CurrentUserService);
 
   protected readonly todos = signal<TodoResponse[]>([]);
   protected readonly loading = signal(true);
@@ -23,8 +23,6 @@ export class TodosPageComponent implements OnInit {
   protected description = '';
 
   async ngOnInit(): Promise<void> {
-    // The local user id is not in the token — it has to be fetched once. See CurrentUserService.
-    await this.currentUser.load();
     await this.reload();
   }
 
@@ -81,17 +79,15 @@ export class TodosPageComponent implements OnInit {
   }
 
   private async reload(): Promise<void> {
-    const userId = this.currentUser.userId();
-
-    if (!userId) {
-      this.error.set('No authenticated user.');
-      this.loading.set(false);
-      return;
-    }
-
     this.loading.set(true);
+    this.error.set(null);
 
     try {
+      const currentUser = await this.currentUser.load();
+      if (!currentUser) {
+        throw new Error('No authenticated user.');
+      }
+      const userId = currentUser.id;
       const result = await this.apiClient.todos.get({ queryParameters: { userId } });
       this.todos.set(result ?? []);
     } catch (error) {
@@ -99,5 +95,9 @@ export class TodosPageComponent implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  protected retryLoad(): void {
+    void this.reload();
   }
 }

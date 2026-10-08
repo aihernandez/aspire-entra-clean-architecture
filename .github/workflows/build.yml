@@ -75,4 +75,4 @@ jobs:
 
       - name: Test
         working-directory: src/frontend
-        run: npx ng test --watch=false --browsers=ChromeHeadless
+        run: npm test -- --watch=false

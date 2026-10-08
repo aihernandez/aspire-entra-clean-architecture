@@ -1,5 +1,6 @@
 using Application.Abstractions.Data;
 using Application.Abstractions.Messaging;
+using Domain.Users;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel;
 
@@ -14,14 +15,16 @@ internal sealed class GetUsersQueryHandler(IApplicationDbContext context)
     : IQueryHandler<GetUsersQuery, PagedResponse<UserResponse>>
 {
     private const int MaxPageSize = 100;
-    private const int DefaultPageSize = 20;
 
     public async Task<Result<PagedResponse<UserResponse>>> Handle(
         GetUsersQuery query,
         CancellationToken cancellationToken)
     {
-        int pageNumber = query.PageNumber < 1 ? 1 : query.PageNumber;
-        int pageSize = query.PageSize is < 1 or > MaxPageSize ? DefaultPageSize : query.PageSize;
+        long offset = ((long)query.PageNumber - 1) * query.PageSize;
+        if (query.PageNumber < 1 || query.PageSize is < 1 or > MaxPageSize || offset > int.MaxValue)
+        {
+            return Result.Failure<PagedResponse<UserResponse>>(UserErrors.InvalidPagination);
+        }
 
         IQueryable<Domain.Users.User> users = context.Users.AsNoTracking().Where(user => user.IsActive);
 
@@ -30,8 +33,9 @@ internal sealed class GetUsersQueryHandler(IApplicationDbContext context)
         List<UserResponse> items = await users
             .OrderBy(user => user.FirstName)
             .ThenBy(user => user.LastName)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
+            .ThenBy(user => user.Id)
+            .Skip((int)offset)
+            .Take(query.PageSize)
             .Select(user => new UserResponse
             {
                 Id = user.Id,
@@ -41,6 +45,6 @@ internal sealed class GetUsersQueryHandler(IApplicationDbContext context)
             })
             .ToListAsync(cancellationToken);
 
-        return new PagedResponse<UserResponse>(items, pageNumber, pageSize, totalCount);
+        return new PagedResponse<UserResponse>(items, query.PageNumber, query.PageSize, totalCount);
     }
 }

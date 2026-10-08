@@ -14,4 +14,7 @@ internal static class AuthenticationSchemes
     /// exclusively under <c>IHostEnvironment.IsDevelopment()</c> — see EntraIdMigration.md, D8.
     /// </summary>
     public const string Development = "Development";
+
+    /// <summary>An incomplete Entra configuration cannot authenticate any caller.</summary>
+    public const string Unavailable = "Unavailable";
 }

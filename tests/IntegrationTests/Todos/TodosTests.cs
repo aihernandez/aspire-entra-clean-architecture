@@ -110,6 +110,32 @@ public sealed class TodosTests(IntegrationTestWebAppFactory factory) : BaseInteg
     }
 
     [Fact]
+    public async Task Member_Should_ListCompleteAndDeleteOwnTodo()
+    {
+        using HttpClient client = CreateMemberClient(out _);
+        Guid userId = await GetLocalUserIdAsync(client);
+        HttpResponseMessage created = await client.PostAsJsonAsync("todos", new
+        {
+            userId,
+            description = "Lifecycle todo",
+            labels = Array.Empty<string>(),
+            priority = 1
+        });
+        created.EnsureSuccessStatusCode();
+        Guid todoId = await created.Content.ReadFromJsonAsync<Guid>();
+
+        List<TodoDto>? listed = await client.GetFromJsonAsync<List<TodoDto>>($"todos?userId={userId}");
+        listed!.ShouldContain(todo => todo.Id == todoId);
+
+        (await client.PutAsync($"todos/{todoId}/complete", null)).EnsureSuccessStatusCode();
+        TodoDto? completed = await client.GetFromJsonAsync<TodoDto>($"todos/{todoId}");
+        completed!.IsCompleted.ShouldBeTrue();
+
+        (await client.DeleteAsync($"todos/{todoId}")).EnsureSuccessStatusCode();
+        (await client.GetAsync($"todos/{todoId}")).StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task CreateTodo_Should_ReturnForbidden_WhenCreatingForSomebodyElse()
     {
         // Arrange

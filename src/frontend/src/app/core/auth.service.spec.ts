@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import { TestBed } from '@angular/core/testing';
 import { AuthService } from './auth.service';
 
@@ -7,67 +8,71 @@ import { AuthService } from './auth.service';
  * try to redirect to a tenant that does not exist and show a blank page instead of an error.
  *
  * The MSAL path is deliberately not unit-tested here — it redirects the browser to Microsoft, so
- * asserting on it would only test a mock of MSAL. It is covered by signing in for real.
+ * asserting on it would only test a mock of MSAL. Validate it separately with a live tenant.
  */
 describe('AuthService', () => {
-  let service: AuthService;
-  let fetchSpy: jasmine.Spy;
+    let service: AuthService;
+    let fetchSpy: Mock<typeof fetch>;
 
-  beforeEach(() => {
-    TestBed.configureTestingModule({});
-    service = TestBed.inject(AuthService);
-    fetchSpy = spyOn(window, 'fetch');
-  });
+    beforeEach(() => {
+        TestBed.configureTestingModule({});
+        service = TestBed.inject(AuthService);
+        fetchSpy = vi.fn<typeof fetch>();
+        vi.stubGlobal('fetch', fetchSpy);
+    });
 
-  function respondWith(body: unknown, ok = true): void {
-    fetchSpy.and.resolveTo({ ok, json: () => Promise.resolve(body) } as Response);
-  }
+    afterEach(() => vi.unstubAllGlobals());
 
-  it('treats a disabled auth-config as development bypass', async () => {
-    respondWith({ enabled: false, clientId: '', authority: '', apiScope: '' });
+    function respondWith(body: unknown, ok = true): void {
+        fetchSpy.mockResolvedValue({ ok, json: () => Promise.resolve(body) } as Response);
+    }
 
-    await service.initialize();
+    it('treats a disabled auth-config as development bypass', async () => {
+        respondWith({ enabled: false, clientId: '', authority: '', apiScope: '' });
 
-    expect(service.isReady()).toBeTrue();
-    expect(service.isAuthenticated()).toBeTrue();
-    expect(service.isAdmin()).toBeTrue();
-    expect(await service.getAccessToken()).toBeNull();
-  });
+        await service.initialize();
 
-  it('treats an unreachable API as development bypass rather than a blank page', async () => {
-    fetchSpy.and.rejectWith(new Error('connection refused'));
+        expect(service.isReady()).toBe(true);
+        expect(service.isAuthenticated()).toBe(true);
+        expect(service.error()).toBeNull();
+        expect(await service.getAccessToken()).toBeNull();
+    });
 
-    await service.initialize();
+    it('shows an error when the API is unreachable and never grants a bypass', async () => {
+        fetchSpy.mockRejectedValue(new Error('connection refused'));
 
-    expect(service.isReady()).toBeTrue();
-    expect(service.isAuthenticated()).toBeTrue();
-  });
+        await service.initialize();
 
-  it('reports the stand-in identity while bypassing', async () => {
-    respondWith({ enabled: false, clientId: '', authority: '', apiScope: '' });
+        expect(service.isReady()).toBe(true);
+        expect(service.isAuthenticated()).toBe(false);
+        expect(service.error()).toContain('Could not load sign-in settings');
+    });
 
-    await service.initialize();
+    it('reports the stand-in identity while bypassing', async () => {
+        respondWith({ enabled: false, clientId: '', authority: '', apiScope: '' });
 
-    expect(service.email()).toBe('dev.user@localhost');
-    expect(service.roles()).toEqual(['Admin']);
-  });
+        await service.initialize();
 
-  it('sends no Authorization header while bypassing', async () => {
-    // The API's development scheme authenticates by configuration, so attaching a token would be
-    // meaningless — and attaching an empty one would look like a malformed request.
-    respondWith({ enabled: false, clientId: '', authority: '', apiScope: '' });
+        expect(service.email()).toBe('dev.user@localhost');
+        expect(service.error()).toBeNull();
+    });
 
-    await service.initialize();
+    it('sends no Authorization header while bypassing', async () => {
+        // The API's development scheme authenticates by configuration, so attaching a token would be
+        // meaningless — and attaching an empty one would look like a malformed request.
+        respondWith({ enabled: false, clientId: '', authority: '', apiScope: '' });
 
-    expect(await service.getAccessToken()).toBeNull();
-  });
+        await service.initialize();
 
-  it('does not sign out or sign in while bypassing', async () => {
-    respondWith({ enabled: false, clientId: '', authority: '', apiScope: '' });
-    await service.initialize();
+        expect(await service.getAccessToken()).toBeNull();
+    });
 
-    // Both are no-ops rather than throwing: the shell renders a sign-out button regardless.
-    await expectAsync(service.signIn()).toBeResolved();
-    await expectAsync(service.signOut()).toBeResolved();
-  });
+    it('does not sign out or sign in while bypassing', async () => {
+        respondWith({ enabled: false, clientId: '', authority: '', apiScope: '' });
+        await service.initialize();
+
+        // Both are no-ops rather than throwing: the shell renders a sign-out button regardless.
+        await expect(service.signIn()).resolves.toBeUndefined();
+        await expect(service.signOut()).resolves.toBeUndefined();
+    });
 });

@@ -46,9 +46,33 @@ internal static class EntraClaims
     /// </summary>
     public static bool IsAppOnlyToken(this ClaimsPrincipal principal)
     {
+        if (principal.HasClaim("idtyp", "app"))
+        {
+            return true;
+        }
+
         string? objectId = principal.GetObjectId();
-        string? subject = principal.FindFirstValue(ClaimConstants.Sub);
+        string? subject = principal.FindFirstValue(ClaimConstants.Sub)
+            ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
 
         return objectId is not null && subject is not null && string.Equals(objectId, subject, StringComparison.Ordinal);
+    }
+
+    /// <summary>Only delegated people can use endpoints backed by a local user profile.</summary>
+    public static bool CanAccessUserEndpoints(this ClaimsPrincipal principal)
+    {
+        if (principal.Identity?.IsAuthenticated != true ||
+            principal.GetEntraObjectId() is null || principal.GetEntraTenantId() is null ||
+            principal.IsAppOnlyToken())
+        {
+            return false;
+        }
+
+        // This authentication type is created by the server's Development-only handler. A token
+        // claim or an X-Dev-* header cannot select it when the Bearer scheme is registered.
+        return principal.Identity.AuthenticationType == AuthenticationSchemes.Development ||
+            principal.FindAll(claim => claim.Type is "scp" or "http://schemas.microsoft.com/identity/claims/scope")
+                .SelectMany(claim => claim.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                .Contains("access_as_user", StringComparer.Ordinal);
     }
 }

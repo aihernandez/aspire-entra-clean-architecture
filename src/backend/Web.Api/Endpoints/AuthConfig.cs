@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Web.Api.Extensions;
 
@@ -25,20 +26,30 @@ internal sealed class AuthConfig : IEndpoint
 
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapGet("auth-config", Results<Ok<AuthConfigResponse>, EmptyHttpResult> (IConfiguration configuration) =>
+        app.MapGet("auth-config", async Task<Results<Ok<AuthConfigResponse>, ProblemHttpResult>> (
+            IConfiguration configuration,
+            IAuthenticationSchemeProvider schemes) =>
         {
+            AuthenticationScheme? activeScheme = await schemes.GetDefaultAuthenticateSchemeAsync();
+
+            if (activeScheme?.Name == "Development")
+            {
+                return TypedResults.Ok(new AuthConfigResponse(false, string.Empty, string.Empty, string.Empty));
+            }
+
             string? tenantId = configuration["AzureAd:TenantId"];
             string? apiClientId = configuration["AzureAd:ClientId"];
             string? spaClientId = configuration["AzureAd:SpaClientId"];
             string instance = configuration["AzureAd:Instance"] ?? "https://login.microsoftonline.com/";
 
-            // Not configured: the API is running on its development authentication scheme, so the
-            // SPA must skip MSAL entirely rather than redirect to a tenant that isn't there.
             if (string.IsNullOrWhiteSpace(tenantId) ||
                 string.IsNullOrWhiteSpace(apiClientId) ||
                 string.IsNullOrWhiteSpace(spaClientId))
             {
-                return TypedResults.Ok(new AuthConfigResponse(false, string.Empty, string.Empty, string.Empty));
+                return TypedResults.Problem(
+                    title: "Authentication is not configured",
+                    detail: "Complete the Entra ID configuration before signing in.",
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
             }
 
             return TypedResults.Ok(new AuthConfigResponse(
@@ -48,6 +59,7 @@ internal sealed class AuthConfig : IEndpoint
                 ApiScope: $"api://{apiClientId}/access_as_user"));
         })
         .Produces<AuthConfigResponse>()
+        .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
         .AllowAnonymous()
         .WithTags(Tags.Users);
     }

@@ -7,6 +7,8 @@ export interface CurrentUser {
   email: string;
   firstName: string;
   lastName: string;
+  roles: string[];
+  permissions: string[];
 }
 
 /**
@@ -24,6 +26,7 @@ export class CurrentUserService {
   private readonly auth = inject(AuthService);
 
   private readonly currentUser = signal<CurrentUser | null>(null);
+  private pendingLoad: Promise<CurrentUser | null> | null = null;
 
   readonly user = this.currentUser.asReadonly();
 
@@ -35,24 +38,35 @@ export class CurrentUserService {
     return user ? `${user.firstName} ${user.lastName}`.trim() : (this.auth.name() ?? '');
   };
 
-  readonly isAdmin = () => this.auth.isAdmin();
+  readonly roles = () => this.currentUser()?.roles ?? [];
+  readonly canReadUsers = () => this.currentUser()?.permissions.includes('users:read-all') ?? false;
 
-  async load(): Promise<CurrentUser | null> {
+  load(): Promise<CurrentUser | null> {
     if (this.currentUser()) {
-      return this.currentUser();
+      return Promise.resolve(this.currentUser());
     }
 
+    this.pendingLoad ??= this.fetchCurrentUser().finally(() => {
+      this.pendingLoad = null;
+    });
+
+    return this.pendingLoad;
+  }
+
+  private async fetchCurrentUser(): Promise<CurrentUser | null> {
     const result = await this.apiClient.users.me.get();
 
     if (!result?.id) {
-      return null;
+      throw new Error('The API did not return a current user.');
     }
 
     const user: CurrentUser = {
       id: result.id,
       email: result.email ?? '',
       firstName: result.firstName ?? '',
-      lastName: result.lastName ?? ''
+      lastName: result.lastName ?? '',
+      roles: result.roles ?? [],
+      permissions: result.permissions ?? []
     };
 
     this.currentUser.set(user);
