@@ -19,6 +19,7 @@ COPY ["src/backend/Infrastructure/Infrastructure.csproj", "src/backend/Infrastru
 COPY ["src/backend/Application/Application.csproj", "src/backend/Application/"]
 COPY ["src/backend/Domain/Domain.csproj", "src/backend/Domain/"]
 COPY ["src/backend/SharedKernel/SharedKernel.csproj", "src/backend/SharedKernel/"]
+COPY ["src/backend/Aspire.ServiceDefaults/Aspire.ServiceDefaults.csproj", "src/backend/Aspire.ServiceDefaults/"]
 RUN dotnet restore "./src/backend/Web.Api/Web.Api.csproj"
 COPY . .
 WORKDIR "/src/src/backend/Web.Api"

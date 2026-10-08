@@ -1,5 +1,7 @@
 # Clean Architecture Template (.NET Aspire + SQL Server + Microsoft Entra ID + Angular)
 
+Azure deployment blueprint: [Bicep infrastructure for dev, staging and prod](infra/README.md).
+
 A full-stack, pragmatic Clean Architecture starter for **internal enterprise applications**: a
 **.NET 10** backend orchestrated by **.NET Aspire**, with **SQL Server** for storage,
 **Microsoft Entra ID** for authentication and authorization, and an **Angular 22** frontend talking
@@ -93,6 +95,76 @@ flowchart LR
     API --> SQL
     API -.-> Mail
 ```
+
+## Infraestructura como código (IaC) en Azure
+
+La infraestructura de Azure se define con **Bicep** y archivos `.bicepparam`; se despliega con
+**Azure CLI** a través de Azure Resource Manager. El mismo archivo principal compone módulos
+reutilizables por servicio. Cada ambiente (`dev`, `staging`, `prod`) usa sus propios parámetros y
+debe desplegarse en un resource group independiente. Esta carpeta describe recursos; tener los
+archivos en el repositorio no crea servicios en Azure.
+
+```text
+infra/
+├── README.md                         Guía de preparación, despliegue y tareas posteriores
+├── main.bicep                        Orquestación, parámetros comunes y salidas
+├── environments/
+│   ├── dev.bicepparam                Desarrollo
+│   ├── staging.bicepparam            Preproducción
+│   └── prod.bicepparam               Producción
+└── modules/
+    ├── network.bicep                 VNet y subredes para aplicaciones y endpoints privados
+    ├── identity.bicep                Identidad administrada de las aplicaciones
+    ├── registry.bicep                Azure Container Registry y permiso para extraer imágenes
+    ├── sql.bicep                     Azure SQL Database, copias, auditoría y acceso privado
+    ├── key-vault.bicep               Secretos, RBAC y acceso privado
+    ├── monitor.bicep                 Log Analytics, Application Insights y grupo de alertas
+    ├── container-apps.bicep          Entorno interno, API .NET y frontend Angular
+    ├── front-door.bicep              Front Door Premium, WAF, rutas y Private Link
+    └── storage.bicep                 Blob Storage privado, opcional
+```
+
+`main.bicep` conecta las salidas de cada módulo: la red da acceso privado a SQL y Key Vault; la
+identidad administrada permite a las aplicaciones leer el secreto de SQL y extraer imágenes de
+Container Registry. Front Door publica `/api/*` hacia la API (quitando el prefijo `/api`) y `/*`
+hacia Angular, con WAF delante de ambos. Los registros y diagnósticos se envían a Log Analytics;
+se crea Application Insights, aunque la exportación de telemetría de la API requiere activar el
+exporter de Azure Monitor en el código. `storage.bicep` se crea solo si `enableStorage = true`.
+
+| Ambiente | Réplicas API y web | Azure SQL | WAF | Disponibilidad |
+|---|---|---|---|---|
+| `dev` | 1 fija | Basic | Detección | Una réplica; sin redundancia zonal |
+| `staging` | 1 a 3, automático | S1 | Detección | Sin redundancia zonal |
+| `prod` | 2 a 10, automático | General Purpose, 2 vCores | Prevención | Redundancia zonal en Container Apps y SQL |
+
+Los tres ambientes usan Front Door Premium y tienen `enableStorage = false` por defecto. La
+configuración de producción no añade una segunda región. Para variables requeridas, imágenes,
+permisos, aprobación de Private Link y comandos de despliegue, consultar [infra/README.md](infra/README.md).
+
+## Escalado y balanceo de carga en Azure
+
+El escalado se implementa en `container-apps.bicep` con **Azure Container Apps** y sus reglas de
+escalado HTTP. Se configura por ambiente en el `.bicepparam` correspondiente:
+
+- `scaleMode = 'fixed'`: `maxReplicas` efectivo se iguala a `minReplicas`; no se agrega regla HTTP.
+- `scaleMode = 'auto'`: API y Angular tienen reglas HTTP independientes y pueden variar entre
+  `minReplicas` y `maxReplicas` según sus solicitudes concurrentes.
+- `apiHttpConcurrency` y `webHttpConcurrency` fijan el umbral por réplica de cada aplicación; ambos
+  valen 10 inicialmente. Ajustarlos tras pruebas de carga y comprobar que SQL soporte el tráfico.
+
+En el borde, **Azure Front Door Premium** aplica el **WAF**, termina la entrada pública y dirige
+cada ruta a su grupo de origen mediante **Private Link**. Comprueba la salud de la API en
+`/health` y de Angular en `/` cada 60 segundos, y tiene parámetros de balanceo en ambos grupos.
+Actualmente cada grupo contiene **un solo origen**: Front Door enruta y protege el tráfico de
+entrada, mientras Container Apps reparte las solicitudes entre las réplicas disponibles de cada
+app. Esto permite escalado horizontal dentro de un ambiente, pero no conmutación entre regiones.
+En `prod`, el WAF bloquea según sus reglas administradas; en `dev` y `staging` funciona en modo
+de detección. El mínimo de dos réplicas en `prod` mantiene capacidad aun cuando baja el tráfico.
+
+El camino de una solicitud es `cliente → Front Door + WAF → Private Link → Container Apps`;
+la API accede a Azure SQL y Key Vault por la red privada. La tecnología de la plantilla es **Bicep para IaC**,
+**Front Door Premium para entrada, rutas y comprobaciones de salud**, y **Container Apps para
+ejecución y escalado de contenedores**. No se define un Azure Load Balancer separado.
 
 ## What's included
 
