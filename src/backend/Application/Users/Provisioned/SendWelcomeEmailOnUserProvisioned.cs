@@ -39,10 +39,22 @@ internal sealed class SendWelcomeEmailOnUserProvisioned(
             return;
         }
 
-        await emailService.SendAsync(
-            recipient.Email,
-            $"{recipient.FirstName} {recipient.LastName}".Trim(),
-            new WelcomeEmailModel(recipient.FirstName),
-            cancellationToken);
+        try
+        {
+            await emailService.SendAsync(
+                recipient.Email,
+                $"{recipient.FirstName} {recipient.LastName}".Trim(),
+                new WelcomeEmailModel(recipient.FirstName),
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            // The user is already committed. A welcome message is best effort in this template.
+            logger.LogError(exception, "Welcome email failed for user {UserId}.", domainEvent.UserId);
+        }
     }
 }

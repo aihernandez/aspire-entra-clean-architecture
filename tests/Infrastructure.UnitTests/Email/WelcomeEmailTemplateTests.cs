@@ -11,7 +11,7 @@ public sealed class WelcomeEmailTemplateTests
     [Fact]
     public async Task RenderAsync_Should_OwnTheSubjectAndRenderedBody()
     {
-        var renderer = new StubEmailBodyRenderer("<p>Welcome, Ada!</p>");
+        var renderer = new StubRazorEmailRenderer("<p>Welcome, Ada!</p>");
         IOptions<EmailBrandingOptions> branding = Options.Create(new EmailBrandingOptions
         {
             AppName = "Contoso"
@@ -24,20 +24,26 @@ public sealed class WelcomeEmailTemplateTests
 
         result.Subject.ShouldBe("Welcome to Contoso!");
         result.HtmlBody.ShouldBe("<p>Welcome, Ada!</p>");
+        renderer.ReceivedPath.ShouldBe("/Views/Emails/WelcomeEmail.cshtml");
         renderer.ReceivedModel.ShouldBe(model);
         renderer.ReceivedCancellationToken.ShouldBe(cancellation.Token);
     }
 
-    private sealed class StubEmailBodyRenderer(string htmlBody) : IEmailBodyRenderer<WelcomeEmailModel>
+    private sealed class StubRazorEmailRenderer(string htmlBody) : IRazorEmailRenderer
     {
-        public WelcomeEmailModel? ReceivedModel { get; private set; }
+        public string? ReceivedPath { get; private set; }
+
+        public object? ReceivedModel { get; private set; }
 
         public CancellationToken ReceivedCancellationToken { get; private set; }
 
-        public Task<string> RenderAsync(
-            WelcomeEmailModel model,
+        public Task<string> RenderAsync<TModel>(
+            string viewPath,
+            TModel model,
             CancellationToken cancellationToken = default)
+            where TModel : notnull
         {
+            ReceivedPath = viewPath;
             ReceivedModel = model;
             ReceivedCancellationToken = cancellationToken;
 

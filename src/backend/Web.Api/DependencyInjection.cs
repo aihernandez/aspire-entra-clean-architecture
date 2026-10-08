@@ -10,8 +10,8 @@ public static class DependencyInjection
     {
         services.AddEndpointsApiExplorer();
 
-        // REMARK: If you want to use Controllers, you'll need this.
-        services.AddControllers();
+        services.AddControllersWithViews()
+            .AddApplicationPart(typeof(global::Infrastructure.DependencyInjection).Assembly);
 
         services.AddExceptionHandler<GlobalExceptionHandler>();
         services.AddProblemDetails();

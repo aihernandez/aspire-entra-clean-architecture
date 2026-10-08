@@ -20,7 +20,7 @@
           </tr>
           <tr>
             <td style="padding:32px;color:#1f2937;font-size:14px;line-height:1.6;">
-              @ChildContent
+              @RenderBody()
             </td>
           </tr>
           <tr>
@@ -37,9 +37,3 @@
   </table>
 </body>
 </html>
-
-@code {
-    [Parameter]
-    [EditorRequired]
-    public RenderFragment ChildContent { get; set; } = default!;
-}
