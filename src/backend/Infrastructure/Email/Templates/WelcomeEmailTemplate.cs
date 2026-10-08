@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 namespace Infrastructure.Email.Templates;
 
 internal sealed class WelcomeEmailTemplate(
-    IEmailBodyRenderer<WelcomeEmailModel> renderer,
+    IRazorEmailRenderer renderer,
     IOptions<EmailBrandingOptions> branding)
     : IEmailTemplate<WelcomeEmailModel>
 {
@@ -13,7 +13,10 @@ internal sealed class WelcomeEmailTemplate(
         WelcomeEmailModel model,
         CancellationToken cancellationToken = default)
     {
-        string htmlBody = await renderer.RenderAsync(model, cancellationToken);
+        string htmlBody = await renderer.RenderAsync(
+            "/Views/Emails/WelcomeEmail.cshtml",
+            model,
+            cancellationToken);
 
         return new RenderedEmail($"Welcome to {branding.Value.AppName}!", htmlBody);
     }
