@@ -35,43 +35,103 @@ $consumers = @(
     Join-Path $repoRoot "src/frontend/src/app/api-client"
 )
 
-Write-Host "Restoring local dotnet tools (kiota)..." -ForegroundColor Cyan
-dotnet tool restore --tool-manifest (Join-Path $repoRoot ".config/dotnet-tools.json")
-
-Write-Host "Building Web.Api to regenerate the OpenAPI document..." -ForegroundColor Cyan
-dotnet build $webApiProject
-
-if (-not (Test-Path $openApiDocument)) {
-    throw "OpenAPI document not found at $openApiDocument after build."
+function Assert-NativeSuccess([string]$step) {
+    if ($LASTEXITCODE -ne 0) {
+        throw "$step failed with exit code $LASTEXITCODE. Existing generated clients were preserved."
+    }
 }
 
-if (Test-Path $outputDir) {
-    Remove-Item -Recurse -Force $outputDir
+$temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("kiota-" + [guid]::NewGuid())
+$generated = Join-Path $temporaryRoot "generated"
+$destinations = @($outputDir) + $consumers
+$workspaceRoot = [System.IO.Path]::GetFullPath($repoRoot).TrimEnd([System.IO.Path]::DirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+$tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd([System.IO.Path]::DirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+$preserveRecoveryFiles = $false
+
+foreach ($destination in $destinations) {
+    $fullPath = [System.IO.Path]::GetFullPath($destination)
+    if (-not $fullPath.StartsWith($workspaceRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to replace a client outside the workspace: $fullPath"
+    }
+}
+if (-not [System.IO.Path]::GetFullPath($temporaryRoot).StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Refusing to use a temporary directory outside the system temp root."
 }
 
-Write-Host "Generating the TypeScript API client with Kiota..." -ForegroundColor Cyan
-dotnet kiota generate `
-    --language typescript `
-    --openapi $openApiDocument `
-    --class-name ApiClient `
-    --namespace-name api-client `
-    --output $outputDir
+Push-Location $repoRoot
+try {
+    Write-Host "Restoring local dotnet tools (kiota)..." -ForegroundColor Cyan
+    dotnet tool restore --tool-manifest (Join-Path $repoRoot ".config/dotnet-tools.json")
+    Assert-NativeSuccess "dotnet tool restore"
 
-Write-Host "Done. Client written to $outputDir" -ForegroundColor Green
+    Write-Host "Building Web.Api to regenerate the OpenAPI document..." -ForegroundColor Cyan
+    dotnet build $webApiProject
+    Assert-NativeSuccess "dotnet build"
 
-foreach ($consumer in $consumers) {
-    if (-not (Test-Path (Split-Path -Parent $consumer))) {
-        Write-Host "Skipping sync to $consumer (parent folder doesn't exist)." -ForegroundColor DarkYellow
-        continue
+    if (-not (Test-Path $openApiDocument)) {
+        throw "OpenAPI document not found at $openApiDocument after build."
     }
 
-    Write-Host "Syncing client to $consumer..." -ForegroundColor Cyan
+    New-Item -ItemType Directory -Path $temporaryRoot -Force | Out-Null
+    Write-Host "Generating the TypeScript API client with Kiota..." -ForegroundColor Cyan
+    dotnet kiota generate `
+        --language typescript `
+        --openapi $openApiDocument `
+        --class-name ApiClient `
+        --namespace-name api-client `
+        --output $generated
+    Assert-NativeSuccess "dotnet kiota generate"
 
-    if (Test-Path $consumer) {
-        Remove-Item -Recurse -Force $consumer
+    if (-not (Test-Path (Join-Path $generated "apiClient.ts"))) {
+        throw "Kiota did not produce apiClient.ts. Existing generated clients were preserved."
     }
 
-    Copy-Item -Recurse -Force $outputDir $consumer
-}
+    # Stage every copy before replacing any consumer. If a replacement fails, restore all copies.
+    for ($index = 0; $index -lt $destinations.Count; $index++) {
+        New-Item -ItemType Directory -Path (Split-Path -Parent $destinations[$index]) -Force | Out-Null
+        Copy-Item -Recurse -Path $generated -Destination (Join-Path $temporaryRoot "staged-$index")
+        if (Test-Path $destinations[$index]) {
+            Copy-Item -Recurse -Path $destinations[$index] -Destination (Join-Path $temporaryRoot "backup-$index")
+        }
+    }
 
-Write-Host "Done. Client synced to: $($consumers -join ', ')" -ForegroundColor Green
+    $attempted = [System.Collections.Generic.List[int]]::new()
+    try {
+        for ($index = 0; $index -lt $destinations.Count; $index++) {
+            $destination = $destinations[$index]
+            $attempted.Add($index)
+            if (Test-Path $destination) {
+                Remove-Item -Recurse -Force -LiteralPath $destination
+            }
+            Move-Item -LiteralPath (Join-Path $temporaryRoot "staged-$index") -Destination $destination
+        }
+    }
+    catch {
+        $replacementError = $_
+        foreach ($index in $attempted) {
+            try {
+                $destination = $destinations[$index]
+                if (Test-Path $destination) {
+                    Remove-Item -Recurse -Force -LiteralPath $destination
+                }
+                $backup = Join-Path $temporaryRoot "backup-$index"
+                if (Test-Path $backup) {
+                    Move-Item -LiteralPath $backup -Destination $destination
+                }
+            }
+            catch {
+                $preserveRecoveryFiles = $true
+                Write-Warning "Recovery failed for $($destinations[$index]). Backups retained at $temporaryRoot."
+            }
+        }
+        throw $replacementError
+    }
+
+    Write-Host "Client synced to: $($destinations -join ', ')" -ForegroundColor Green
+}
+finally {
+    Pop-Location
+    if (-not $preserveRecoveryFiles -and (Test-Path $temporaryRoot)) {
+        Remove-Item -Recurse -Force -LiteralPath $temporaryRoot
+    }
+}
