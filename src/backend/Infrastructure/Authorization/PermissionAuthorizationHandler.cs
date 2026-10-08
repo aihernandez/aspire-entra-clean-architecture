@@ -9,7 +9,7 @@ internal sealed class PermissionAuthorizationHandler : AuthorizationHandler<Perm
         AuthorizationHandlerContext context,
         PermissionRequirement requirement)
     {
-        if (context.User is not { Identity.IsAuthenticated: true })
+        if (!context.User.CanAccessUserEndpoints())
         {
             return Task.CompletedTask;
         }

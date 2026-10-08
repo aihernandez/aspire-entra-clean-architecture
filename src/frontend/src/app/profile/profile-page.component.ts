@@ -1,6 +1,5 @@
 import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CurrentUserService } from '../core/current-user.service';
-import { AuthService } from '../core/auth.service';
 
 /**
  * Read-only by design.
@@ -36,7 +35,7 @@ import { AuthService } from '../core/auth.service';
           <div>
             <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Roles</dt>
             <dd class="mt-1 flex flex-wrap gap-1.5">
-              @for (role of roles(); track role) {
+              @for (role of roles(); track $index) {
                 <span class="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700">
                   {{ role }}
                 </span>
@@ -69,14 +68,13 @@ import { AuthService } from '../core/auth.service';
 })
 export class ProfilePageComponent {
   private readonly currentUser = inject(CurrentUserService);
-  private readonly auth = inject(AuthService);
 
   protected readonly error = signal<string | null>(null);
 
   protected readonly displayName = () => this.currentUser.displayName();
   protected readonly email = () => this.currentUser.email();
   protected readonly userId = () => this.currentUser.userId();
-  protected readonly roles = () => this.auth.roles();
+  protected readonly roles = () => this.currentUser.roles();
 
   constructor() {
     void this.currentUser.load().catch(() => this.error.set('Could not load your profile.'));

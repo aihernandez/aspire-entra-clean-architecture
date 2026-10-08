@@ -40,20 +40,30 @@ export class ShellComponent {
   private readonly currentUser = inject(CurrentUserService);
 
   protected readonly sidebarOpen = signal(false);
+  protected readonly loadError = signal<string | null>(null);
 
   constructor() {
     // Resolves the local user id once for the whole session, and provisions the account
     // server-side if this is the person's first ever visit.
-    void this.currentUser.load();
+    void this.loadCurrentUser();
   }
 
   protected readonly navItems = () =>
-    NAV_ITEMS.filter(item => !item.adminOnly || this.auth.isAdmin());
+    NAV_ITEMS.filter(item => !item.adminOnly || this.currentUser.canReadUsers());
 
   protected readonly email = () => this.currentUser.email();
   protected readonly initial = () => (this.currentUser.email() || '?').charAt(0).toUpperCase();
 
   protected logout(): void {
     void this.auth.signOut();
+  }
+
+  protected async loadCurrentUser(): Promise<void> {
+    this.loadError.set(null);
+    try {
+      await this.currentUser.load();
+    } catch {
+      this.loadError.set('Could not load your profile. Check the API and try again.');
+    }
   }
 }

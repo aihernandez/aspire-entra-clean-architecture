@@ -12,7 +12,7 @@
   />
   <button
     type="submit"
-    [disabled]="busy()"
+    [disabled]="busy() || loading() || !currentUser.userId()"
     class="shrink-0 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-default disabled:opacity-60"
   >
     Add
@@ -21,6 +21,7 @@
 
 @if (error()) {
   <p class="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{{ error() }}</p>
+  <button type="button" (click)="retryLoad()" class="mt-2 text-sm font-medium text-indigo-700 underline">Try again</button>
 }
 
 <div class="mt-6">

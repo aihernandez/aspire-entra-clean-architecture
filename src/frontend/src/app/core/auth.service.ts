@@ -6,8 +6,6 @@ import {
 } from '@azure/msal-browser';
 import { API_BASE_URL } from './api-config';
 
-const ADMIN_ROLE = 'Admin';
-
 interface AuthConfigResponse {
   enabled: boolean;
   clientId: string;
@@ -37,69 +35,80 @@ export class AuthService {
    * True when the API reports no Entra ID configuration, i.e. it is running on its development
    * authentication scheme. MSAL is never loaded in that mode.
    */
-  private devBypass = true;
+  private devBypass = false;
 
   private readonly ready = signal(false);
+  private readonly initializationError = signal<string | null>(null);
 
   readonly isReady = this.ready.asReadonly();
+  readonly error = this.initializationError.asReadonly();
 
   /**
    * Called once at bootstrap. MSAL must be initialised, and the redirect response processed,
    * before any other call — otherwise every one of them throws.
    */
   async initialize(): Promise<void> {
-    this.config = await this.fetchConfig();
-
-    if (!this.config?.enabled) {
-      this.devBypass = true;
-      this.ready.set(true);
-      return;
-    }
-
+    this.ready.set(false);
+    this.initializationError.set(null);
     this.devBypass = false;
+    this.account = null;
+    this.msal = null;
+    this.config = null;
 
-    this.msal = new PublicClientApplication({
-      auth: {
-        clientId: this.config.clientId,
-        authority: this.config.authority,
-        redirectUri: window.location.origin
-      },
-      cache: { cacheLocation: 'localStorage' }
-    });
+    try {
+      this.config = await this.fetchConfig();
 
-    await this.msal.initialize();
+      if (!this.config.enabled) {
+        this.devBypass = true;
+        return;
+      }
 
-    const redirectResponse = await this.msal.handleRedirectPromise();
+      this.msal = new PublicClientApplication({
+        auth: {
+          clientId: this.config.clientId,
+          authority: this.config.authority,
+          redirectUri: window.location.origin
+        },
+        cache: { cacheLocation: 'localStorage' }
+      });
 
-    this.account = redirectResponse?.account ?? this.msal.getAllAccounts()[0] ?? null;
+      await this.msal.initialize();
 
-    if (this.account) {
-      this.msal.setActiveAccount(this.account);
+      const redirectResponse = await this.msal.handleRedirectPromise();
+
+      this.account = redirectResponse?.account ?? this.msal.getAllAccounts()[0] ?? null;
+
+      if (this.account) {
+        this.msal.setActiveAccount(this.account);
+      }
+    } catch {
+      this.initializationError.set('Could not load sign-in settings. Check the API and try again.');
+    } finally {
+      this.ready.set(true);
     }
-
-    this.ready.set(true);
   }
 
-  private async fetchConfig(): Promise<AuthConfigResponse | null> {
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth-config`);
+  private async fetchConfig(): Promise<AuthConfigResponse> {
+    const response = await fetch(`${API_BASE_URL}/auth-config`, {
+      signal: AbortSignal.timeout(10000)
+    });
 
-      return response.ok ? ((await response.json()) as AuthConfigResponse) : null;
-    } catch {
-      // API unreachable at startup. Failing closed here would leave a blank page with no
-      // explanation; the guard sends the user to sign in and the first API call reports the real
-      // problem.
-      return null;
+    if (!response.ok) {
+      throw new Error(`Authentication configuration returned ${response.status}`);
     }
+
+    const config = (await response.json()) as Partial<AuthConfigResponse>;
+
+    if (typeof config?.enabled !== 'boolean' ||
+        (config.enabled && (!config.clientId || !config.authority || !config.apiScope))) {
+      throw new Error('Authentication configuration is incomplete');
+    }
+
+    return config as AuthConfigResponse;
   }
 
   isAuthenticated(): boolean {
     return this.devBypass || this.account !== null;
-  }
-
-  /** Claims come from the ID token; the API reads its own from the access token. */
-  private claims(): Record<string, unknown> {
-    return (this.account?.idTokenClaims ?? {}) as Record<string, unknown>;
   }
 
   email(): string | null {
@@ -118,22 +127,8 @@ export class AuthService {
     return this.account?.name ?? null;
   }
 
-  roles(): string[] {
-    if (this.devBypass) {
-      return [ADMIN_ROLE];
-    }
-
-    const roles = this.claims()['roles'];
-
-    return Array.isArray(roles) ? (roles as string[]) : [];
-  }
-
-  isAdmin(): boolean {
-    return this.roles().includes(ADMIN_ROLE);
-  }
-
   async signIn(): Promise<void> {
-    if (this.devBypass || !this.msal || !this.config) {
+    if (this.initializationError() || this.devBypass || !this.msal || !this.config) {
       return;
     }
 

@@ -32,12 +32,18 @@ if (app.Environment.IsDevelopment())
     app.UseOpenApiWithUi();
 
     app.ApplyMigrations();
+
+    // The detailed health report is useful locally, but should not expose dependencies publicly.
+    app.MapHealthChecks("health", new HealthCheckOptions
+    {
+        ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+    }).AllowAnonymous().DisableRateLimiting();
 }
 
-app.MapHealthChecks("health", new HealthCheckOptions
+app.MapHealthChecks("ready", new HealthCheckOptions
 {
-    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-});
+    Predicate = check => !check.Tags.Contains("live")
+}).AllowAnonymous().DisableRateLimiting();
 
 app.UseRequestContextLogging();
 
@@ -47,13 +53,13 @@ app.UseCors(Web.Api.DependencyInjection.FrontendCorsPolicy);
 
 app.UseAuthentication();
 
-// Between authentication and authorization: the principal must already be validated, and every
-// handler past this point expects IUserContext.UserId to resolve.
-app.UseUserProvisioning();
+// Reject exhausted quotas and unauthorized principals before opening the user's SQL context.
+app.UseRateLimiter();
 
 app.UseAuthorization();
 
-app.UseRateLimiter();
+// Permission policies read claims only. Provision after they pass, before handlers need UserId.
+app.UseUserProvisioning();
 
 // REMARK: If you want to use Controllers, you'll need this.
 app.MapControllers();

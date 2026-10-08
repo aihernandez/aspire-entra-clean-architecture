@@ -31,6 +31,7 @@ public sealed class EndpointAuthorizationTests(IntegrationTestWebAppFactory fact
     [
         "health",
         "alive",
+        "ready",
         "openapi",
 
         // Scalar's API-reference UI and its static assets. Mapped only in Development, and

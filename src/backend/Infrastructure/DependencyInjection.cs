@@ -12,6 +12,7 @@ using Infrastructure.Email.Templates;
 using Infrastructure.Time;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
@@ -65,9 +66,17 @@ public static class DependencyInjection
 
     private static IServiceCollection AddHealthChecks(this IServiceCollection services, IConfiguration configuration)
     {
+        // A probe must not reuse a stalled application connection or retry for minutes.
+        var probeConnection = new SqlConnectionStringBuilder(configuration.GetConnectionString("Database"))
+        {
+            ConnectTimeout = 5,
+            CommandTimeout = 5,
+            ConnectRetryCount = 0,
+            Pooling = false
+        };
         services
             .AddHealthChecks()
-            .AddSqlServer(configuration.GetConnectionString("Database")!);
+            .AddSqlServer(probeConnection.ConnectionString, timeout: TimeSpan.FromSeconds(5));
 
         return services;
     }
@@ -98,26 +107,36 @@ public static class DependencyInjection
         var entraIdOptions = new EntraIdOptions();
         configuration.GetSection(EntraIdOptions.SectionName).Bind(entraIdOptions);
 
-        // Development with no tenant configured is the "just cloned the template" path. Everywhere
-        // else the Entra scheme is registered unconditionally, even when the configuration is
-        // incomplete: an unconfigured scheme rejects every token, which is the safe failure, and
-        // throwing here would break `dotnet build` — the OpenAPI document generator boots this very
-        // Program with no ASPNETCORE_ENVIRONMENT set, so it runs as Production.
+        // Development with no tenant configured is the "just cloned the template" path. Other
+        // environments use Entra only when all identifiers are present. Incomplete configuration
+        // uses a scheme that accepts nobody and leaves /auth-config available to report 503.
+        // This also lets the OpenAPI document generator boot Program without a configured tenant.
         bool useDevelopmentAuthentication =
             environment.IsDevelopment() && string.IsNullOrWhiteSpace(entraIdOptions.ClientId);
 
+        bool hasCompleteEntraConfiguration =
+            !string.IsNullOrWhiteSpace(entraIdOptions.TenantId) &&
+            !string.IsNullOrWhiteSpace(entraIdOptions.ClientId) &&
+            !string.IsNullOrWhiteSpace(configuration["AzureAd:SpaClientId"]);
+
+        string scheme;
         if (useDevelopmentAuthentication)
         {
             AddDevelopmentAuthentication(services, developmentSection);
+            scheme = AuthenticationSchemes.Development;
+        }
+        else if (hasCompleteEntraConfiguration)
+        {
+            AddEntraId(services, configuration, entraIdOptions);
+            scheme = AuthenticationSchemes.EntraId;
         }
         else
         {
-            AddEntraId(services, configuration, entraIdOptions);
+            services.AddAuthentication(AuthenticationSchemes.Unavailable)
+                .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,
+                    UnavailableAuthenticationHandler>(AuthenticationSchemes.Unavailable, _ => { });
+            scheme = AuthenticationSchemes.Unavailable;
         }
-
-        string scheme = useDevelopmentAuthentication
-            ? AuthenticationSchemes.Development
-            : AuthenticationSchemes.EntraId;
 
         services.AddSingleton<IAuthenticationSchemeRegistry>(new AuthenticationSchemeRegistry([scheme]));
 

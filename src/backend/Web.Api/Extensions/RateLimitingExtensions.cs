@@ -1,5 +1,5 @@
 using System.Threading.RateLimiting;
-using Web.Api.Infrastructure;
+using Microsoft.Identity.Web;
 
 namespace Web.Api.Extensions;
 
@@ -21,17 +21,12 @@ internal static class RateLimitingExtensions
             // ...) would otherwise have to special-case rate limiting alone.
             options.OnRejected = async (context, cancellationToken) =>
             {
-                context.HttpContext.Response.ContentType = "application/problem+json";
-
-                await context.HttpContext.Response.WriteAsJsonAsync(
-                    new
-                    {
-                        type = "https://tools.ietf.org/html/rfc6585#section-4",
-                        title = "Too many requests",
-                        status = StatusCodes.Status429TooManyRequests,
-                        detail = "Too many requests. Please try again later."
-                    },
-                    cancellationToken);
+                await Results.Problem(
+                    type: "https://tools.ietf.org/html/rfc6585#section-4",
+                    title: "Too many requests",
+                    statusCode: StatusCodes.Status429TooManyRequests,
+                    detail: "Too many requests. Please try again later.")
+                    .ExecuteAsync(context.HttpContext);
             };
 
             // A global fixed-window limiter, partitioned by authenticated user or client IP.
@@ -51,8 +46,15 @@ internal static class RateLimitingExtensions
 
     private static string GetPartitionKey(HttpContext httpContext)
     {
-        return httpContext.User.Identity?.Name
-            ?? httpContext.Connection.RemoteIpAddress?.ToString()
-            ?? "anonymous";
+        if (httpContext.User.Identity?.IsAuthenticated == true &&
+            Guid.TryParse(httpContext.User.GetTenantId(), out Guid tenantId) &&
+            Guid.TryParse(httpContext.User.GetObjectId(), out Guid objectId))
+        {
+            return $"user:{tenantId:D}:{objectId:D}";
+        }
+
+        // Do not trust arbitrary X-Forwarded-For headers. Proxy forwarding requires a separately
+        // configured trusted-proxy boundary. The quota is per API instance.
+        return $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
     }
 }

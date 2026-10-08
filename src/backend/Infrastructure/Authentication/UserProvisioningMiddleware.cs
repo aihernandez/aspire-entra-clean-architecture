@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using Domain.Users;
+using Microsoft.AspNetCore.Authorization;
 using Infrastructure.Database;
+using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +32,15 @@ internal sealed class UserProvisioningMiddleware(RequestDelegate next, ILogger<U
 
     public async Task InvokeAsync(HttpContext context)
     {
+        Endpoint? endpoint = context.GetEndpoint();
+        if (endpoint?.Metadata.GetMetadata<IAuthorizeData>() is null ||
+            endpoint.Metadata.GetMetadata<IAllowAnonymous>() is not null)
+        {
+            // Public infrastructure endpoints and unmatched routes never need a local profile.
+            await next(context);
+            return;
+        }
+
         if (context.User.Identity is not { IsAuthenticated: true } || context.User.IsAppOnlyToken())
         {
             // Anonymous, or a service principal. Neither gets a user profile; endpoints that need
@@ -66,11 +77,10 @@ internal sealed class UserProvisioningMiddleware(RequestDelegate next, ILogger<U
             u => u.EntraObjectId == objectId.Value && u.EntraTenantId == tenantId.Value,
             context.RequestAborted);
 
-        if (user is null)
-        {
-            user = await ProvisionAsync(dbContext, objectId.Value, tenantId.Value, dateTimeProvider, context);
-        }
-        else if (!user.IsActive)
+        bool wasFound = user is not null;
+        user ??= await ProvisionAsync(dbContext, objectId.Value, tenantId.Value, dateTimeProvider, context);
+
+        if (!user.IsActive)
         {
             // Deprovisioned locally (by a future SCIM integration, or by hand). Entra may still
             // issue them a token, so the refusal has to happen here.
@@ -82,7 +92,7 @@ internal sealed class UserProvisioningMiddleware(RequestDelegate next, ILogger<U
 
             return;
         }
-        else
+        if (wasFound)
         {
             await RefreshAsync(dbContext, user, dateTimeProvider, context);
         }
@@ -120,7 +130,28 @@ internal sealed class UserProvisioningMiddleware(RequestDelegate next, ILogger<U
 
         dbContext.Users.Add(user);
 
-        await dbContext.SaveChangesAsync(context.RequestAborted);
+        try
+        {
+            await dbContext.SaveChangesAsync(context.RequestAborted);
+        }
+        catch (DbUpdateException exception) when (
+            exception.InnerException is SqlException { Number: 2601 or 2627 } sqlException &&
+            sqlException.Message.Contains(
+                "IX_Users_EntraObjectId_EntraTenantId", StringComparison.OrdinalIgnoreCase))
+        {
+            // Another request inserted this same directory identity after our initial lookup.
+            dbContext.Entry(user).State = EntityState.Detached;
+            User? existing = await dbContext.Users.FirstOrDefaultAsync(
+                u => u.EntraObjectId == objectId && u.EntraTenantId == tenantId,
+                context.RequestAborted);
+
+            if (existing is null)
+            {
+                throw;
+            }
+
+            return existing;
+        }
 
         // The welcome email is sent by a handler for UserProvisionedDomainEvent, dispatched by
         // SaveChangesAsync above — middleware has no business talking to an SMTP server.
