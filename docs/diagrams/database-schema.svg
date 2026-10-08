@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 880 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="database-schema-title database-schema-desc" id="database-schema-root">
+        <title id="database-schema-title">Database schema · dbo</title>
+        <desc id="database-schema-desc">Physical SQL Server schema with two tables, dbo.Users and dbo.TodoItems, where TodoItems.UserId references Users.Id with ON DELETE CASCADE and Users is unique on the Entra object and tenant ID pair.</desc>
+        <defs>
+      <style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;family=Noto+Serif:ital@0;1&amp;family=Noto+Sans+KR:wght@400;500;600&amp;family=Noto+Serif+KR:wght@400&amp;family=Noto+Sans+TC:wght@400;500;600&amp;family=Noto+Serif+TC:wght@400&amp;display=swap');
+      #database-schema-root { --color-paper:   #f5f5f5;
+      --color-ink:     #2d3142;
+      --color-muted:   #4f5d75;
+      --color-accent:  #eb6c36;
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace; }
+      #database-schema-root { font-family: var(--font-sans); color: var(--color-ink); }
+      #database-schema-root .diagram-container { width: 100%; overflow-x: auto; }
+      #database-schema-root .diagram-container { overflow-x: visible; }</style>
+          <marker id="database-schema-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+        <!-- FK connector (drawn before boxes) -->
+        <!-- TodoItems.UserId -> Users.Id · ON DELETE CASCADE (focal) -->
+        <path d="M 520,104 H 448 Q 440,104 440,96 V 88 Q 440,80 432,80 H 360" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#database-schema-arrow-accent)"/>
+
+        <!-- FK label (masked, 6px gap above the connector) -->
+        <rect x="392" y="62" width="96" height="12" rx="2" fill="#f5f5f5"/>
+        <text x="440" y="71" fill="#eb6c36" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">ON DELETE CASCADE</text>
+
+        <!-- Table: dbo.Users -->
+        <rect x="40" y="40" width="320" height="264" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+        <rect x="40" y="40" width="320" height="28" rx="6" fill="#2d3142" fill-opacity="0.04" stroke="none"/>
+        <rect x="40" y="60" width="320" height="8" fill="#2d3142" fill-opacity="0.04"/>
+        <line x1="40" y1="68" x2="360" y2="68" stroke="#2d3142" stroke-opacity="0.22" stroke-width="1"/>
+        <text x="52" y="58" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif">dbo.Users</text>
+        <rect x="308" y="48" width="40" height="12" rx="2" fill="none" stroke="#2d3142" stroke-opacity="0.40" stroke-width="0.8"/>
+        <text x="328" y="57" fill="#2d3142" opacity="0.8" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">TABLE</text>
+
+        <rect x="40" y="68" width="320" height="24" fill="#2d3142" fill-opacity="0.02"/>
+        <text x="52" y="84" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">Id</text>
+        <rect x="208" y="76" width="20" height="12" rx="2" fill="none" stroke="#2d3142" stroke-opacity="0.35" stroke-width="0.8"/>
+        <text x="218" y="85" fill="#2d3142" opacity="0.75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">PK</text>
+        <text x="348" y="84" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">uniqueidentifier</text>
+
+        <text x="52" y="108" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">EntraObjectId</text>
+        <rect x="208" y="100" width="20" height="12" rx="2" fill="none" stroke="#2d3142" stroke-opacity="0.35" stroke-width="0.8"/>
+        <text x="218" y="109" fill="#2d3142" opacity="0.75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">UQ</text>
+        <text x="348" y="108" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">uniqueidentifier</text>
+
+        <rect x="40" y="116" width="320" height="24" fill="#2d3142" fill-opacity="0.02"/>
+        <text x="52" y="132" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">EntraTenantId</text>
+        <rect x="208" y="124" width="20" height="12" rx="2" fill="none" stroke="#2d3142" stroke-opacity="0.35" stroke-width="0.8"/>
+        <text x="218" y="133" fill="#2d3142" opacity="0.75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">UQ</text>
+        <text x="348" y="132" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">uniqueidentifier</text>
+
+        <text x="52" y="156" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">Email</text>
+        <text x="348" y="156" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">nvarchar(256)</text>
+
+        <rect x="40" y="164" width="320" height="24" fill="#2d3142" fill-opacity="0.02"/>
+        <text x="52" y="180" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">FirstName</text>
+        <text x="348" y="180" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">nvarchar(100)</text>
+
+        <text x="52" y="204" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">LastName</text>
+        <text x="348" y="204" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">nvarchar(100)</text>
+
+        <rect x="40" y="212" width="320" height="24" fill="#2d3142" fill-opacity="0.02"/>
+        <text x="52" y="228" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">IsActive</text>
+        <text x="348" y="228" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">bit</text>
+
+        <text x="52" y="252" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace">+ 3 more · audit timestamps (datetime2)</text>
+
+        <line x1="40" y1="260" x2="360" y2="260" stroke="#2d3142" stroke-opacity="0.12" stroke-width="0.8"/>
+        <text x="52" y="274" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">INDEXES</text>
+        <text x="52" y="292" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace">IX_Users_EntraObjectId_EntraTenantId</text>
+        <rect x="308" y="283" width="40" height="12" rx="2" fill="none" stroke="#2d3142" stroke-opacity="0.35" stroke-width="0.8"/>
+        <text x="328" y="292" fill="#2d3142" opacity="0.75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">UNIQUE</text>
+
+        <!-- Table: dbo.TodoItems (focal header — accent-tint, cascade target) -->
+        <rect x="520" y="40" width="320" height="264" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+        <rect x="520" y="40" width="320" height="28" rx="6" fill="#eb6c36" fill-opacity="0.08" stroke="none"/>
+        <rect x="520" y="60" width="320" height="8" fill="#eb6c36" fill-opacity="0.08"/>
+        <line x1="520" y1="68" x2="840" y2="68" stroke="#2d3142" stroke-opacity="0.22" stroke-width="1"/>
+        <text x="532" y="58" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif">dbo.TodoItems</text>
+        <rect x="788" y="48" width="40" height="12" rx="2" fill="none" stroke="#2d3142" stroke-opacity="0.40" stroke-width="0.8"/>
+        <text x="808" y="57" fill="#2d3142" opacity="0.8" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">TABLE</text>
+
+        <rect x="520" y="68" width="320" height="24" fill="#2d3142" fill-opacity="0.02"/>
+        <text x="532" y="84" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">Id</text>
+        <rect x="688" y="76" width="20" height="12" rx="2" fill="none" stroke="#2d3142" stroke-opacity="0.35" stroke-width="0.8"/>
+        <text x="698" y="85" fill="#2d3142" opacity="0.75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">PK</text>
+        <text x="828" y="84" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">uniqueidentifier</text>
+
+        <text x="532" y="108" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">UserId</text>
+        <rect x="688" y="100" width="20" height="12" rx="2" fill="none" stroke="#2d3142" stroke-opacity="0.35" stroke-width="0.8"/>
+        <text x="698" y="109" fill="#2d3142" opacity="0.75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">FK</text>
+        <text x="828" y="108" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">uniqueidentifier</text>
+
+        <rect x="520" y="116" width="320" height="24" fill="#2d3142" fill-opacity="0.02"/>
+        <text x="532" y="132" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">Description</text>
+        <text x="828" y="132" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">nvarchar(max)</text>
+
+        <text x="532" y="156" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">Priority</text>
+        <text x="828" y="156" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">int</text>
+
+        <rect x="520" y="164" width="320" height="24" fill="#2d3142" fill-opacity="0.02"/>
+        <text x="532" y="180" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">IsCompleted</text>
+        <text x="828" y="180" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">bit</text>
+
+        <text x="532" y="204" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">DueDate</text>
+        <rect x="688" y="196" width="28" height="12" rx="2" fill="none" stroke="#2d3142" stroke-opacity="0.35" stroke-width="0.8"/>
+        <text x="702" y="205" fill="#2d3142" opacity="0.75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">NULL</text>
+        <text x="828" y="204" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">datetime2</text>
+
+        <rect x="520" y="212" width="320" height="24" fill="#2d3142" fill-opacity="0.02"/>
+        <text x="532" y="228" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">Labels</text>
+        <text x="828" y="228" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">nvarchar(max) · JSON</text>
+
+        <text x="532" y="252" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace">+ 2 more · CreatedAt, CompletedAt (datetime2)</text>
+
+        <line x1="520" y1="260" x2="840" y2="260" stroke="#2d3142" stroke-opacity="0.12" stroke-width="0.8"/>
+        <text x="532" y="274" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">INDEXES</text>
+        <text x="532" y="292" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace">IX_TodoItems_UserId</text>
+
+        <!-- Legend -->
+        <line x1="40" y1="336" x2="840" y2="336" stroke="#2d3142" stroke-opacity="0.10" stroke-width="0.8"/>
+        <text x="40" y="352" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.18em">LEGEND</text>
+
+        <rect x="40" y="368" width="20" height="12" rx="2" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+        <text x="68" y="376" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif">Table</text>
+
+        <rect x="140" y="368" width="20" height="12" rx="2" fill="none" stroke="#2d3142" stroke-opacity="0.35" stroke-width="0.8"/>
+        <text x="150" y="377" fill="#2d3142" opacity="0.75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">PK</text>
+        <text x="168" y="376" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif">Constraint chip</text>
+
+        <rect x="268" y="368" width="28" height="12" rx="2" fill="none" stroke="#2d3142" stroke-opacity="0.35" stroke-width="0.8"/>
+        <text x="282" y="377" fill="#2d3142" opacity="0.75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">NULL</text>
+        <text x="304" y="376" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif">Nullable; every other column is NOT NULL</text>
+
+        <line x1="532" y1="374" x2="552" y2="374" stroke="#eb6c36" stroke-width="1.2"/>
+        <text x="560" y="376" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif">Foreign key with cascading delete (column to column)</text>
+      </svg>

@@ -72,5 +72,6 @@ twice.
 
 ---
 
-Backend template derived from [amantinband/clean-architecture](https://github.com/amantinband/clean-architecture)
-(Copyright (c) 2023 Amichai Mantinband), MIT-licensed — see the repo root [LICENSE](../../LICENSE).
+Backend started from Milan Jovanović's free
+[Clean Architecture Template](https://www.milanjovanovic.tech/templates/clean-architecture). License:
+see the repo root [LICENSE](../../LICENSE).
