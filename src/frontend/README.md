@@ -1,59 +1,34 @@
-# Frontend
+# Angular frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.34.
+This Angular 22 application calls the .NET API through a Kiota generated TypeScript client. The
+generated files under `src/app/api-client/` are ignored by Git and must exist before building or
+serving the frontend.
 
-## Development server
+From the repository root, with .NET 10, Node.js, npm and Docker available:
 
-To start a local development server, run:
-
-```bash
-ng serve
+```powershell
+./scripts/setup-dev.ps1
+dotnet run --project src/backend/Aspire.AppHost
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+The setup command installs the locked npm dependencies and generates the client from Web.Api.
+Aspire starts Angular at `http://localhost:4200` with the API and local dependencies. If an API
+contract changes, rerun `./scripts/generate-api-client.ps1` before compiling Angular.
 
-## Code scaffolding
+To validate this app from `src/frontend`:
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
+```powershell
+npm run build
+npm test -- --watch=false
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+The unit tests use Vitest through Angular CLI with jsdom and one thread worker configured in
+`vitest-base.config.mts` for bounded resource use. They cover sign-in configuration
+failures, shared current-user requests, retries, menu permissions and displayed roles. They
+simulate a DOM; real Entra sign-in and browser redirects require a separate browser check.
+Karma and Jasmine are no longer dependencies. Run `npm audit` to check all dependencies,
+including development tools, and `npm audit --omit=dev` for the production dependency set.
 
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Angular reads sign-in configuration from the API's `/auth-config` endpoint. In local development,
+the API can use its development authentication scheme. A failed request or incomplete sign-in
+configuration displays an error and does not enable that scheme in the browser.
