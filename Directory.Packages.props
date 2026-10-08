@@ -36,7 +36,7 @@
     <PackageVersion Include="MailKit" Version="4.17.0" />
     <!-- Web.Api -->
     <PackageVersion Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
     <!-- Transitive pin: Microsoft.AspNetCore.OpenApi/Scalar.AspNetCore pull Microsoft.OpenApi 2.0.0, which has a
          known high-severity DoS advisory (GHSA-v5pm-xwqc-g5wc, stack overflow via circular schema refs). Pinned
          to the lowest fixed 2.x release to stay API-compatible with Microsoft.AspNetCore.OpenApi 10.0.9. -->
