@@ -18,9 +18,9 @@ param webImage string
 param tenantId string
 param apiClientId string
 param spaClientId string
-param sqlAdminLogin string
-@secure()
-param sqlAdminPassword string
+@description('Object id of the Entra group responsible for SQL bootstrap and migrations, never the API identity.')
+param sqlEntraAdminObjectId string
+param sqlEntraAdminName string
 param smtpHost string = ''
 param smtpFromEmail string = ''
 param alertEmail string = ''
@@ -71,9 +71,14 @@ module monitor './modules/monitor.bicep' = {
   }
 }
 
-module identity './modules/identity.bicep' = {
-  name: 'identity-${baseName}'
-  params: { name: 'id-${baseName}', location: location, tags: commonTags }
+module apiIdentity './modules/identity.bicep' = {
+  name: 'identity-api-${baseName}'
+  params: { name: 'id-api-${baseName}', location: location, tags: commonTags }
+}
+
+module webIdentity './modules/identity.bicep' = {
+  name: 'identity-web-${baseName}'
+  params: { name: 'id-web-${baseName}', location: location, tags: commonTags }
 }
 
 module registry './modules/registry.bicep' = {
@@ -82,7 +87,7 @@ module registry './modules/registry.bicep' = {
     name: 'acr${workload}${environment}${suffix}'
     location: location
     tags: commonTags
-    principalId: identity.outputs.principalId
+    principalIds: [apiIdentity.outputs.principalId, webIdentity.outputs.principalId]
   }
 }
 
@@ -93,7 +98,6 @@ module vault './modules/key-vault.bicep' = {
     location: location
     tags: commonTags
     tenantId: tenantId
-    principalId: identity.outputs.principalId
     privateEndpointSubnetId: network.outputs.privateEndpointSubnetId
     vnetId: network.outputs.vnetId
     purgeProtection: isProd
@@ -107,8 +111,10 @@ module sql './modules/sql.bicep' = {
     databaseName: 'app'
     location: location
     tags: commonTags
-    adminLogin: sqlAdminLogin
-    adminPassword: sqlAdminPassword
+    entraAdminObjectId: sqlEntraAdminObjectId
+    entraAdminName: sqlEntraAdminName
+    tenantId: tenantId
+    runtimeClientId: apiIdentity.outputs.clientId
     skuName: isProd ? 'GP_Gen5_2' : (isDev ? 'Basic' : 'S1')
     skuTier: isProd ? 'GeneralPurpose' : (isDev ? 'Basic' : 'Standard')
     maxSizeBytes: isProd ? 34359738368 : (isDev ? 2147483648 : 268435456000)
@@ -117,7 +123,6 @@ module sql './modules/sql.bicep' = {
     longTermRetention: isProd
     privateEndpointSubnetId: network.outputs.privateEndpointSubnetId
     vnetId: network.outputs.vnetId
-    vaultName: vault.outputs.name
     actionGroupId: monitor.outputs.actionGroupId
     workspaceId: monitor.outputs.workspaceId
   }
@@ -132,7 +137,7 @@ module storage './modules/storage.bicep' = if (enableStorage) {
     skuName: isProd ? 'Standard_GZRS' : 'Standard_LRS'
     privateEndpointSubnetId: network.outputs.privateEndpointSubnetId
     vnetId: network.outputs.vnetId
-    principalId: identity.outputs.principalId
+    principalId: apiIdentity.outputs.principalId
   }
 }
 
@@ -147,7 +152,8 @@ module apps './modules/container-apps.bicep' = {
     logAnalyticsSharedKey: monitor.outputs.workspaceSharedKey
     appInsightsConnectionString: monitor.outputs.appInsightsConnectionString
     registryServer: registry.outputs.loginServer
-    identityId: identity.outputs.id
+    apiIdentityId: apiIdentity.outputs.id
+    webIdentityId: webIdentity.outputs.id
     apiImage: apiImage
     webImage: webImage
     scaleMode: scaleMode
@@ -156,7 +162,7 @@ module apps './modules/container-apps.bicep' = {
     apiHttpConcurrency: apiHttpConcurrency
     webHttpConcurrency: webHttpConcurrency
     zoneRedundant: isProd
-    connectionSecretUri: sql.outputs.connectionSecretUri
+    databaseConnectionString: sql.outputs.runtimeConnectionString
     tenantId: tenantId
     apiClientId: apiClientId
     spaClientId: spaClientId
@@ -184,5 +190,9 @@ output webUrl string = edge.outputs.webUrl
 output registryServer string = registry.outputs.loginServer
 output keyVaultName string = vault.outputs.name
 output sqlServerName string = sql.outputs.serverName
+output sqlDatabaseName string = sql.outputs.databaseName
+output apiIdentityPrincipalId string = apiIdentity.outputs.principalId
+output apiIdentityClientId string = apiIdentity.outputs.clientId
+output webIdentityPrincipalId string = webIdentity.outputs.principalId
 output applicationInsightsConnectionString string = monitor.outputs.appInsightsConnectionString
 output frontDoorPrivateLinkApprovalTarget string = apps.outputs.environmentId

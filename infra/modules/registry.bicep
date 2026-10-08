@@ -1,7 +1,7 @@
 param name string
 param location string
 param tags object
-param principalId string
+param principalIds array
 
 resource registry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   name: name
@@ -11,7 +11,7 @@ resource registry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   properties: { adminUserEnabled: false, publicNetworkAccess: 'Enabled' }
 }
 
-resource pullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource pullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for principalId in principalIds: {
   name: guid(registry.id, principalId, 'acrpull')
   scope: registry
   properties: {
@@ -19,6 +19,6 @@ resource pullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
     principalType: 'ServicePrincipal'
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
   }
-}
+}]
 
 output loginServer string = registry.properties.loginServer

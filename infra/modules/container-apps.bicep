@@ -7,7 +7,8 @@ param logAnalyticsCustomerId string
 param logAnalyticsSharedKey string
 param appInsightsConnectionString string
 param registryServer string
-param identityId string
+param apiIdentityId string
+param webIdentityId string
 param apiImage string
 param webImage string
 @allowed(['fixed', 'auto'])
@@ -21,7 +22,7 @@ param apiHttpConcurrency int
 @minValue(1)
 param webHttpConcurrency int
 param zoneRedundant bool
-param connectionSecretUri string
+param databaseConnectionString string
 param tenantId string
 param apiClientId string
 param spaClientId string
@@ -51,13 +52,12 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
   name: 'ca-api-${name}'
   location: location
   tags: tags
-  identity: { type: 'UserAssigned', userAssignedIdentities: { '${identityId}': {} } }
+  identity: { type: 'UserAssigned', userAssignedIdentities: { '${apiIdentityId}': {} } }
   properties: {
     managedEnvironmentId: environment.id
     configuration: {
       activeRevisionsMode: 'Single'
-      registries: [{ server: registryServer, identity: identityId }]
-      secrets: [{ name: 'database', keyVaultUrl: connectionSecretUri, identity: identityId }]
+      registries: [{ server: registryServer, identity: apiIdentityId }]
       ingress: {
         external: true
         targetPort: 8080
@@ -72,8 +72,8 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
         env: [
           { name: 'ASPNETCORE_ENVIRONMENT', value: 'Production' }
           { name: 'ASPNETCORE_HTTP_PORTS', value: '8080' }
-          { name: 'ConnectionStrings__Database', secretRef: 'database' }
-          { name: 'AzureAd__Instance', value: 'https://login.microsoftonline.com/' }
+          { name: 'ConnectionStrings__Database', value: databaseConnectionString }
+          { name: 'AzureAd__Instance', value: az.environment().authentication.loginEndpoint }
           { name: 'AzureAd__TenantId', value: tenantId }
           { name: 'AzureAd__ClientId', value: apiClientId }
           { name: 'AzureAd__SpaClientId', value: spaClientId }
@@ -83,8 +83,8 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
         ]
         resources: { cpu: json('0.5'), memory: '1Gi' }
         probes: [
-          { type: 'Liveness', httpGet: { path: '/health', port: 8080 }, initialDelaySeconds: 30, periodSeconds: 30 }
-          { type: 'Readiness', httpGet: { path: '/health', port: 8080 }, initialDelaySeconds: 10, periodSeconds: 15 }
+          { type: 'Liveness', httpGet: { path: '/alive', port: 8080 }, initialDelaySeconds: 30, periodSeconds: 30, timeoutSeconds: 5 }
+          { type: 'Readiness', httpGet: { path: '/ready', port: 8080 }, initialDelaySeconds: 10, periodSeconds: 15, timeoutSeconds: 10 }
         ]
       }]
       scale: {
@@ -105,12 +105,12 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
   name: 'ca-web-${name}'
   location: location
   tags: tags
-  identity: { type: 'UserAssigned', userAssignedIdentities: { '${identityId}': {} } }
+  identity: { type: 'UserAssigned', userAssignedIdentities: { '${webIdentityId}': {} } }
   properties: {
     managedEnvironmentId: environment.id
     configuration: {
       activeRevisionsMode: 'Single'
-      registries: [{ server: registryServer, identity: identityId }]
+      registries: [{ server: registryServer, identity: webIdentityId }]
       ingress: { external: true, targetPort: 80, transport: 'http', allowInsecure: false }
     }
     template: {

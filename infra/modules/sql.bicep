@@ -2,9 +2,10 @@ param name string
 param databaseName string
 param location string
 param tags object
-param adminLogin string
-@secure()
-param adminPassword string
+param entraAdminObjectId string
+param entraAdminName string
+param tenantId string
+param runtimeClientId string
 param skuName string
 param skuTier string
 param maxSizeBytes int
@@ -13,7 +14,6 @@ param backupRetentionDays int
 param longTermRetention bool
 param privateEndpointSubnetId string
 param vnetId string
-param vaultName string
 param actionGroupId string
 param workspaceId string
 
@@ -22,8 +22,13 @@ resource server 'Microsoft.Sql/servers@2023-08-01' = {
   location: location
   tags: tags
   properties: {
-    administratorLogin: adminLogin
-    administratorLoginPassword: adminPassword
+    administrators: {
+      administratorType: 'ActiveDirectory'
+      login: entraAdminName
+      sid: entraAdminObjectId
+      tenantId: tenantId
+      azureADOnlyAuthentication: true
+    }
     minimalTlsVersion: '1.2'
     publicNetworkAccess: 'Disabled'
     restrictOutboundNetworkAccess: 'Disabled'
@@ -76,15 +81,8 @@ resource diagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' 
   }
 }
 
-resource vault 'Microsoft.KeyVault/vaults@2023-07-01' existing = { name: vaultName }
-resource connectionSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: vault
-  name: 'database-connection'
-  properties: { value: 'Server=tcp:${server.name}.database.windows.net,1433;Initial Catalog=${databaseName};User ID=${adminLogin};Password=${adminPassword};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;' }
-}
-
 resource dns 'Microsoft.Network/privateDnsZones@2024-06-01' = {
-  name: 'privatelink.database.windows.net'
+  name: 'privatelink.${environment().suffixes.sqlServerHostname}'
   location: 'global'
   tags: tags
 }
@@ -127,6 +125,7 @@ resource cpuAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(acti
       'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
       allOf: [{
         name: 'HighCpu'
+        criterionType: 'StaticThresholdCriterion'
         metricName: 'cpu_percent'
         metricNamespace: 'Microsoft.Sql/servers/databases'
         operator: 'GreaterThan'
@@ -140,4 +139,6 @@ resource cpuAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(acti
 
 output serverName string = server.name
 output databaseName string = database.name
-output connectionSecretUri string = 'https://${vaultName}.vault.azure.net/secrets/${connectionSecret.name}'
+// SqlClient 6.x accepts the client id of a user-assigned managed identity in User ID.
+// This string contains no password or token and does not require a Key Vault secret.
+output runtimeConnectionString string = 'Server=tcp:${server.name}.${environment().suffixes.sqlServerHostname},1433;Initial Catalog=${databaseName};Authentication=Active Directory Managed Identity;User ID=${runtimeClientId};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'

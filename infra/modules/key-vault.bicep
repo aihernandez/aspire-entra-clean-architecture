@@ -2,7 +2,8 @@ param name string
 param location string
 param tags object
 param tenantId string
-param principalId string
+@description('Optional secret consumer. Empty until an application actually needs vault secrets.')
+param principalId string = ''
 param privateEndpointSubnetId string
 param vnetId string
 param purgeProtection bool
@@ -22,7 +23,7 @@ resource vault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   }
 }
 
-resource secretsUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource secretsUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(principalId)) {
   name: guid(vault.id, principalId, 'secrets-user')
   scope: vault
   properties: {

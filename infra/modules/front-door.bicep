@@ -42,33 +42,11 @@ resource webEndpoint 'Microsoft.Cdn/profiles/afdEndpoints@2024-02-01' = {
   properties: { enabledState: 'Enabled' }
 }
 
-resource apiRules 'Microsoft.Cdn/profiles/ruleSets@2024-02-01' = {
-  parent: profile
-  name: 'stripApiPrefix'
-}
-resource rewriteApi 'Microsoft.Cdn/profiles/ruleSets/rules@2024-02-01' = {
-  parent: apiRules
-  name: 'rewrite'
-  properties: {
-    order: 1
-    conditions: []
-    actions: [{
-      name: 'UrlRewrite'
-      parameters: {
-        typeName: 'DeliveryRuleUrlRewriteActionParameters'
-        sourcePattern: '/api/'
-        destination: '/'
-        preserveUnmatchedPath: true
-      }
-    }]
-  }
-}
-
 resource apiGroup 'Microsoft.Cdn/profiles/originGroups@2024-02-01' = {
   parent: profile
   name: 'api'
   properties: {
-    healthProbeSettings: { probePath: '/health', probeRequestType: 'GET', probeProtocol: 'Https', probeIntervalInSeconds: 60 }
+    healthProbeSettings: { probePath: '/ready', probeRequestType: 'GET', probeProtocol: 'Https', probeIntervalInSeconds: 60 }
     loadBalancingSettings: { sampleSize: 4, successfulSamplesRequired: 3, additionalLatencyInMilliseconds: 50 }
   }
 }
@@ -125,12 +103,13 @@ resource webOrigin 'Microsoft.Cdn/profiles/originGroups/origins@2024-02-01' = {
 resource apiRoute 'Microsoft.Cdn/profiles/afdEndpoints/routes@2024-02-01' = {
   parent: webEndpoint
   name: 'api'
-  dependsOn: [apiOrigin, rewriteApi]
+  dependsOn: [apiOrigin]
   properties: {
     originGroup: { id: apiGroup.id }
     supportedProtocols: ['Http', 'Https']
     patternsToMatch: ['/api/*']
-    ruleSets: [{ id: apiRules.id }]
+    // Replace the matched /api prefix; URL rewrite source patterns only see the remaining path.
+    originPath: '/'
     forwardingProtocol: 'HttpsOnly'
     httpsRedirect: 'Enabled'
     linkToDefaultDomain: 'Enabled'
