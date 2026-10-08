@@ -1,13 +1,17 @@
-# Clean Architecture Template (.NET Aspire + SQL Server + Microsoft Entra ID + Angular)
+# Clean Architecture Template — .NET Aspire · SQL Server · Entra ID · Angular
 
-Azure deployment blueprint: [Bicep infrastructure for dev, staging and prod](infra/README.md).
+A starter repository for **internal business applications** built with .NET and Angular. Instead of
+wiring a new project from scratch, you start from one where the layers, sign-in, database, email,
+tests, typed API client and Azure infrastructure already work together, and you replace the sample
+feature with your own.
 
-A full-stack, pragmatic Clean Architecture starter for **internal enterprise applications**: a
-**.NET 10** backend orchestrated by **.NET Aspire**, with **SQL Server** for storage,
-**Microsoft Entra ID** for authentication and authorization, and an **Angular 22** frontend talking
-to it through a typed client generated straight from the API's OpenAPI document. One command boots
-the whole stack — database, mail catcher, API, and frontend — with real telemetry flowing into the
-Aspire dashboard, **and with no Azure tenant required to run it**.
+Users sign in with **Microsoft Entra ID**, so the app stores no passwords and no roles: identity and
+access come from the organization's tenant. A .NET 10 API and an Angular 22 app run together under
+.NET Aspire with one command, and **no Azure tenant is needed to try it** — locally you are signed in
+as a development user.
+
+The sample app, *Flowdo*, is a small to-do list with a users page and a profile page. It exists to
+show one feature crossing every layer, from the database table to the Angular page.
 
 <p>
   <img alt=".NET" src="https://img.shields.io/badge/.NET-10-512BD4?style=for-the-badge&logo=dotnet&logoColor=white">
@@ -16,7 +20,7 @@ Aspire dashboard, **and with no Azure tenant required to run it**.
   <img alt="ASP.NET Core" src="https://img.shields.io/badge/ASP.NET_Core-Minimal_APIs-512BD4?style=for-the-badge&logo=dotnet&logoColor=white">
   <br>
   <img alt="Angular" src="https://img.shields.io/badge/Angular-22-DD0031?style=for-the-badge&logo=angular&logoColor=white">
-  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-6.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white">
   <img alt="RxJS" src="https://img.shields.io/badge/RxJS-7.8-B7178C?style=for-the-badge&logo=reactivex&logoColor=white">
   <img alt="Tailwind CSS" src="https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white">
   <br>
@@ -31,268 +35,123 @@ Aspire dashboard, **and with no Azure tenant required to run it**.
   <img alt="License" src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge">
 </p>
 
-## What scenario is this built for?
+![The Todos page of the sample app running locally: a dark sidebar with Todos, Users and Profile, a list of four to-dos with one completed, and the development user signed in](docs/images/app.png)
 
-Teams in a **Microsoft/Windows-shop stack** (SQL Server, not Postgres) building an **internal
-line-of-business application** whose users already exist in the organization's **Entra ID tenant** —
-a back-office tool, an admin portal, an operations console. Nobody self-registers. There is no
-anonymous audience. Employees sign in with the corporate account they already have, and IT grants
-access by assigning an app role, through the joiner/mover/leaver process it already runs.
+## Quick start
 
-The application therefore stores **no passwords, no password hashes, and no roles**. Identity is
-Microsoft's; the app validates the access token and reads its `roles` claim.
+You need the .NET 10 SDK, Node.js 22.22.3+ or 24.15+, and Docker Desktop **running**. In PowerShell,
+from the repository root:
 
-If instead you need an app that **owns its own accounts** — customers, external partners,
-self-service registration and password resets — this is the wrong flavor. You want ASP.NET Core
-Identity, which this template deliberately removed.
-
-The design decisions, with the Microsoft guidance behind each one, are written down in
-[`EntraIdMigration.md`](./EntraIdMigration.md). The Azure-side setup is
-[`EntraIdSetup.md`](./EntraIdSetup.md).
-
-## Architecture
-
-Clean Architecture with strict, one-directional dependencies — `Infrastructure` implements
-interfaces owned by `Application`, so `Application` never references EF Core, ASP.NET Core
-Entra ID, or MailKit directly (`NetArchTest`-enforced in `tests/ArchitectureTests`):
-
-```mermaid
-flowchart TD
-    WebApi["Web.Api<br/>Minimal API endpoints, middleware, Program.cs"]
-    Infra["Infrastructure<br/>EF Core + SQL Server, Entra ID (Microsoft.Identity.Web),<br/>JIT provisioning, Email (MailKit/Razor), Authorization, DomainEvents"]
-    App["Application<br/>CQRS handlers, FluentValidation,<br/>abstractions (IApplicationDbContext, IUserContext, ...)"]
-    Domain["Domain<br/>Entities, domain events (Todos, Users)"]
-    Shared["SharedKernel<br/>Result/Error, Entity, IDomainEvent, PermissionNames, RoleNames"]
-
-    WebApi --> App
-    WebApi --> Infra
-    Infra -.-> App
-    App --> Domain
-    App --> Shared
-    Domain --> Shared
-    Infra --> Shared
+```powershell
+./scripts/setup-dev.ps1                            # first time only
+dotnet run --project src/backend/Aspire.AppHost    # every time
 ```
 
-**`Domain.Users.User` is not an identity store.** It holds a local primary key, the
-`(EntraObjectId, EntraTenantId)` pair that links to the directory, a cached copy of name and email
-for display and joins, and `IsActive`. No password, no password hash, no roles.
-
-That last point is the load-bearing one: **authorization never reads this table**. Permissions are
-derived from the access token's `roles` claim by `PermissionProvider`, a pure function with no
-database access. If a `SELECT` ever appears in that path, the local role store has been
-reintroduced through the back door.
-
-Local development is one process tree, orchestrated by the Aspire AppHost:
-
-```mermaid
-flowchart LR
-    Host["dotnet run --project Aspire.AppHost"]
-    Host --> SQL["SQL Server 2025 container<br/>:1433"]
-    Host --> Mail["MailPit container<br/>SMTP catcher, port assigned by Aspire"]
-    Host --> API["Web.Api<br/>:5000 · Scalar docs at /scalar"]
-    Host --> NG["Angular dev server<br/>ng serve · :4200,<br/>calls API via typed Kiota client"]
-    NG -.-> API
-    API --> SQL
-    API -.-> Mail
-```
-
-## Infraestructura como código (IaC) en Azure
-
-La infraestructura de Azure se define con **Bicep** y archivos `.bicepparam`; se despliega con
-**Azure CLI** a través de Azure Resource Manager. El mismo archivo principal compone módulos
-reutilizables por servicio. Cada ambiente (`dev`, `staging`, `prod`) usa sus propios parámetros y
-debe desplegarse en un resource group independiente. Esta carpeta describe recursos; tener los
-archivos en el repositorio no crea servicios en Azure.
-
-```text
-infra/
-├── README.md                         Guía de preparación, despliegue y tareas posteriores
-├── main.bicep                        Orquestación, parámetros comunes y salidas
-├── environments/
-│   ├── dev.bicepparam                Desarrollo
-│   ├── staging.bicepparam            Preproducción
-│   └── prod.bicepparam               Producción
-└── modules/
-    ├── network.bicep                 VNet y subredes para aplicaciones y endpoints privados
-    ├── identity.bicep                Identidad administrada de las aplicaciones
-    ├── registry.bicep                Azure Container Registry y permiso para extraer imágenes
-    ├── sql.bicep                     Azure SQL Database, copias, auditoría y acceso privado
-    ├── key-vault.bicep               Secretos, RBAC y acceso privado
-    ├── monitor.bicep                 Log Analytics, Application Insights y grupo de alertas
-    ├── container-apps.bicep          Entorno interno, API .NET y frontend Angular
-    ├── front-door.bicep              Front Door Premium, WAF, rutas y Private Link
-    └── storage.bicep                 Blob Storage privado, opcional
-```
-
-`main.bicep` conecta las salidas de cada módulo: la red da acceso privado a SQL y Key Vault; la
-identidad administrada permite a las aplicaciones leer el secreto de SQL y extraer imágenes de
-Container Registry. Front Door publica `/api/*` hacia la API (quitando el prefijo `/api`) y `/*`
-hacia Angular, con WAF delante de ambos. Los registros y diagnósticos se envían a Log Analytics;
-se crea Application Insights, aunque la exportación de telemetría de la API requiere activar el
-exporter de Azure Monitor en el código. `storage.bicep` se crea solo si `enableStorage = true`.
-
-| Ambiente | Réplicas API y web | Azure SQL | WAF | Disponibilidad |
-|---|---|---|---|---|
-| `dev` | 1 fija | Basic | Detección | Una réplica; sin redundancia zonal |
-| `staging` | 1 a 3, automático | S1 | Detección | Sin redundancia zonal |
-| `prod` | 2 a 10, automático | General Purpose, 2 vCores | Prevención | Redundancia zonal en Container Apps y SQL |
-
-Los tres ambientes usan Front Door Premium y tienen `enableStorage = false` por defecto. La
-configuración de producción no añade una segunda región. Para variables requeridas, imágenes,
-permisos, aprobación de Private Link y comandos de despliegue, consultar [infra/README.md](infra/README.md).
-
-## Escalado y balanceo de carga en Azure
-
-El escalado se implementa en `container-apps.bicep` con **Azure Container Apps** y sus reglas de
-escalado HTTP. Se configura por ambiente en el `.bicepparam` correspondiente:
-
-- `scaleMode = 'fixed'`: `maxReplicas` efectivo se iguala a `minReplicas`; no se agrega regla HTTP.
-- `scaleMode = 'auto'`: API y Angular tienen reglas HTTP independientes y pueden variar entre
-  `minReplicas` y `maxReplicas` según sus solicitudes concurrentes.
-- `apiHttpConcurrency` y `webHttpConcurrency` fijan el umbral por réplica de cada aplicación; ambos
-  valen 10 inicialmente. Ajustarlos tras pruebas de carga y comprobar que SQL soporte el tráfico.
-
-En el borde, **Azure Front Door Premium** aplica el **WAF**, termina la entrada pública y dirige
-cada ruta a su grupo de origen mediante **Private Link**. Comprueba la salud de la API en
-`/health` y de Angular en `/` cada 60 segundos, y tiene parámetros de balanceo en ambos grupos.
-Actualmente cada grupo contiene **un solo origen**: Front Door enruta y protege el tráfico de
-entrada, mientras Container Apps reparte las solicitudes entre las réplicas disponibles de cada
-app. Esto permite escalado horizontal dentro de un ambiente, pero no conmutación entre regiones.
-En `prod`, el WAF bloquea según sus reglas administradas; en `dev` y `staging` funciona en modo
-de detección. El mínimo de dos réplicas en `prod` mantiene capacidad aun cuando baja el tráfico.
-
-El camino de una solicitud es `cliente → Front Door + WAF → Private Link → Container Apps`;
-la API accede a Azure SQL y Key Vault por la red privada. La tecnología de la plantilla es **Bicep para IaC**,
-**Front Door Premium para entrada, rutas y comprobaciones de salud**, y **Container Apps para
-ejecución y escalado de contenedores**. No se define un Azure Load Balancer separado.
-
-## What's included
-
-**Backend** (`src/backend/`)
-- **CQRS, MediatR-free** — lightweight `ICommand`/`IQuery` + handler abstractions, discovered by
-  Scrutor assembly scanning; logging and validation as decorators.
-- **Persistence** — EF Core 10 + SQL Server, migrations, a domain-events dispatcher, and
-  `IApplicationDbContext` as the only thing `Application` sees (real dependency inversion, not
-  a direct `DbContext` reference).
-- **Entra ID authentication** — `Microsoft.Identity.Web` validates access tokens, and the four
-  claim validations Microsoft requires (audience, tenant, subject, actor) are all wired up. The
-  identity key for local data is the `(oid, tid)` pair — never `oid` alone, never an email address.
-- **Cloud-managed authorization** — Entra **App Roles** arrive in the `roles` claim and map to
-  fine-grained permissions in code. `PermissionProvider` is a pure function of the token: no
-  database, no role table. An integration test fails the build if any endpoint authorizes on
-  authentication alone, which is what would otherwise quietly admit every service principal in the
-  tenant.
-- **Just-in-time provisioning** — there is no registration step, so a person's first authenticated
-  request creates their local record from token claims. Rows are deactivated, never deleted, so a
-  SCIM endpoint can be added later without reshaping the model.
-- **Runs with no Azure tenant** — a Development-only authentication scheme stands in for Entra ID so
-  a fresh clone boots from one command. Startup fails if it is ever configured elsewhere.
-- **Email** — MailKit SMTP sender + precompiled, strongly typed Razor components with shared
-  branding and layout (currently the welcome message, sent when a person is provisioned on first
-  sign-in); routes to **MailPit** in `Development` so email actually sends without a real provider.
-  See ["Email templates (Razor)"](#email-templates-razor) below for how the pieces fit together.
-- **HybridCache** for fast, unified caching with invalidation.
-- **Web API concerns** — Minimal API endpoints (auto-discovered), rate limiting (global +
-  stricter auth policy, 429s shaped as `ProblemDetails` so generated clients never special-case
-  them), global exception handling, Scalar API reference with JWT bearer support.
-- **Observability** — full OpenTelemetry (ASP.NET Core, HTTP, SqlClient, EF Core, runtime),
-  health checks, structured logging — wired once in `Aspire.ServiceDefaults` and shared by every
-  Aspire-orchestrated project, flowing into the **Aspire dashboard** with zero extra setup.
-- **Testing** — unit tests (`Application.UnitTests`), architecture tests enforcing the layering
-  rules above (`ArchitectureTests`), and integration tests against a real, throwaway SQL Server
-  container (`IntegrationTests`, via Testcontainers).
-
-**Frontend** (`src/frontend/`)
-- **Angular 22**, standalone components (no `NgModule`s), Tailwind CSS 4 for styling.
-- **MSAL** (`@azure/msal-browser`) sign-in with Authorization Code + PKCE. There are no auth pages:
-  sign-in, password reset and account recovery are Microsoft's screens. Token acquisition, caching
-  and renewal are MSAL's job, attached to outgoing calls in exactly one place
-  (`core/api-authentication-provider.ts`).
-- Todos and Users (list/detail/admin-role) pages as reference CRUD screens.
-- A **fully typed API client generated with Kiota** (`clients/api-client/`, gitignored) straight
-  from the backend's OpenAPI document — every endpoint declares its error responses
-  (`.ProducesProblem(...)`) so failures surface as real typed `ProblemDetails` objects in the
-  frontend, not generic bodiless errors. Framework-agnostic by design, so a future React client
-  could consume the exact same generated client without regenerating it.
-
-## Getting started
-
-**Prerequisites:** .NET 10 SDK, Node.js 22.22.3+ or 24.15+ (Angular 22 requirement), Docker Desktop (for the
-SQL Server and MailPit containers Aspire spins up).
-
-**Give it room.** SQL Server 2025 in a container, the Docker VM, the API and the Angular dev server
-together want roughly **4-5 GB of free RAM**. On a 16 GB machine also running a browser with many
-tabs, the host will start killing processes — the symptom is confusing, because the Aspire console
-still reports a healthy "distributed application started" while `curl` to the API hangs rather than
-refusing the connection.
-
-```bash
-cd src/frontend && npm install   # first time only
-cd ../..
-dotnet run --project src/backend/Aspire.AppHost
-```
-
-This single command launches the Aspire dashboard, the SQL Server + MailPit containers, the API,
-and the Angular dev server together — telemetry flows into the dashboard automatically, and the
-API's migrations + Identity seed run on startup in `Development`.
-
-| Resource | URL |
+| Open | Where |
 |---|---|
-| Aspire dashboard | printed in the console on startup |
-| Angular app | http://localhost:4200 |
-| API (Scalar docs) | http://localhost:5000/scalar |
-| MailPit (dev email inbox) | port assigned by Aspire — open it from the dashboard |
-| SQL Server | `localhost,1433` |
+| Angular app | http://localhost:4200 — no sign-in needed locally |
+| API reference (Scalar) | http://localhost:5000/scalar |
+| Aspire dashboard | URL printed in the console |
+| MailPit inbox | Link in the Aspire dashboard |
 
-No sign-in is required locally. With `AzureAd:ClientId` empty, the API authenticates every request
-as the person described by the `DevelopmentAuthentication` section of
-`src/backend/Web.Api/appsettings.Development.json`, and the Angular app skips MSAL entirely. Narrow
-`DevelopmentAuthentication:Roles` to just `Member` to see what a non-administrator sees.
+The first run downloads the SQL Server image and can take a few minutes. Stop everything with
+`Ctrl+C`. Run `setup-dev.ps1` again after changing an API contract: it reinstalls the npm packages
+and regenerates the API client.
 
-To authenticate against a real tenant:
+To sign in with a real Entra ID tenant instead of the local development user:
 
 ```powershell
 az login
-./scripts/setup-entra.ps1
+./scripts/setup-entra.ps1   # creates both app registrations and stores their ids in user secrets
 ```
 
-That creates both Entra ID app registrations, assigns you the roles, and stores the ids in .NET
-user secrets — no tenant-specific value ever enters the repository, and the Angular app needs no
-configuration because it reads `GET /auth-config` from the API. The manual portal equivalent, and
-the reasoning behind each step, is in [`EntraIdSetup.md`](./EntraIdSetup.md).
+## When to use it
 
-Run the full test suite (integration tests spin up a throwaway SQL Server container, so Docker
-must be running):
+**Use it** for a back-office tool, admin portal or operations console where every user already has
+an account in the organization's Entra ID tenant, and IT grants access by assigning app roles.
 
-```bash
-dotnet test CleanArchitecture.sln
-```
+**Don't use it** if the app must own its accounts — customers, external partners, self-registration
+or password resets. That needs ASP.NET Core Identity, which this template deliberately removed.
 
-If you change the `Domain`/`Infrastructure` model, add a new migration:
+## Architecture
 
-```bash
-dotnet ef migrations add <MigrationName> --project src/backend/Infrastructure --startup-project src/backend/Web.Api
-```
+![Clean Architecture overview: Angular signs in with Entra ID and calls Web.Api; Web.Api references Application and Infrastructure; Infrastructure implements Application's interfaces and talks to Entra ID, SQL Server and SMTP; Application depends on Domain; every layer references SharedKernel](docs/diagrams/architecture.svg)
 
-### Frontend: calling an endpoint
+Dependencies point inward. `Application` defines the interfaces it needs, and `Infrastructure`
+implements them, so `Application` never references EF Core, Entra ID libraries or MailKit. The
+architecture tests in `tests/ArchitectureTests` fail the build if a layer breaks this rule.
 
-Angular calls the API through the Kiota-generated client — typed, no hand-written HTTP:
+### Components
 
-```typescript
-private readonly apiClient = inject(ApiClientService).client;
+| Project | What it does | References |
+|---|---|---|
+| `SharedKernel` | `Result` and `Error`, base `Entity`, domain-event contracts, permission and role names | — |
+| `Domain` | Entities (`User`, `TodoItem`) and their domain events | SharedKernel |
+| `Application` | Use cases as command and query handlers, validation, and the interfaces they need (`IApplicationDbContext`, `IUserContext`, `IEmailService<T>`) | Domain |
+| `Infrastructure` | Implements those interfaces: EF Core with SQL Server, Entra ID token validation, permissions, user provisioning, email | Application |
+| `Web.Api` | Minimal API endpoints, middleware, and the startup that wires everything together | Application, Infrastructure |
+| `Aspire.AppHost` | Starts and connects the local environment | Web.Api, frontend |
+| `Aspire.ServiceDefaults` | OpenTelemetry, health checks and resilience shared by every .NET project | — |
+| `src/frontend` | Angular 22 single-page app | Generated API client |
+| `tests/` | Unit, architecture, infrastructure and integration tests | — |
 
-async loadTodos(userId: string) {
-  const todos = await this.apiClient.todos.get({ queryParameters: { userId } });
-  // todos: TodoResponse[]
-}
-```
+### Identity and permissions
 
-### Backend: a Minimal API endpoint
+- **Authentication.** The API validates Entra ID access tokens, including the audience, tenant,
+  subject and actor checks Microsoft requires.
+- **Authorization.** App roles arrive in the token's `roles` claim. `PermissionProvider` maps them to
+  permissions in code, without reading the database. An integration test fails if any endpoint
+  allows access based on authentication alone.
+- **Local user record.** A person's first request creates a `User` row from the token: a local id,
+  the `(EntraObjectId, EntraTenantId)` pair, a cached name and email, and `IsActive`. It holds no
+  password and no roles, and rows are deactivated, never deleted.
+- **Local development.** With `AzureAd:ClientId` empty, a Development-only scheme signs every
+  request in as the user in the `DevelopmentAuthentication` section of
+  `src/backend/Web.Api/appsettings.Development.json`. Set its `Roles` to `Member` to see what a
+  non-administrator sees. Startup fails if this scheme is enabled outside Development.
 
-Auto-discovered, documented in Scalar at `/scalar`:
+### Local development with Aspire
+
+![Aspire AppHost: one dotnet run starts the SQL Server and MailPit containers, then Web.Api, then the Angular dev server; the browser loads Angular on :4200 and calls the API on :5000; the API sends telemetry to the Aspire dashboard](docs/diagrams/aspire-apphost.svg)
+
+The numbers are the start order: each resource waits until the previous step is ready. The API
+applies EF Core migrations on startup in Development, and its telemetry shows up in the Aspire
+dashboard.
+
+## Technologies
+
+### Backend
+
+| Area | Technology | Role |
+|---|---|---|
+| Use cases | CQRS without MediatR, Scrutor | Command and query handlers found by assembly scanning; logging and validation as decorators |
+| Persistence | EF Core 10, SQL Server | Migrations and domain-event dispatch behind `IApplicationDbContext` |
+| Authentication | Entra ID, `Microsoft.Identity.Web` | Access-token validation; identity key `(oid, tid)` |
+| Authorization | Entra app roles | Roles mapped to permissions in code, no role table |
+| Email | MailKit, Razor views, MailPit | Typed HTML templates sent over SMTP; MailPit catches them locally |
+| Caching | HybridCache | Unified caching with invalidation |
+| HTTP API | Minimal APIs, Scalar | Auto-discovered endpoints, rate limiting, errors as `ProblemDetails` |
+| Observability | OpenTelemetry, Aspire dashboard | Traces, metrics, structured logs and health checks |
+| Testing | xUnit, NetArchTest, Testcontainers | Unit, architecture and integration tests against a real SQL Server container |
+
+### Frontend
+
+| Area | Technology | Role |
+|---|---|---|
+| UI | Angular 22, Tailwind CSS 4 | Standalone components, no `NgModule`s |
+| Sign-in | MSAL (`@azure/msal-browser`) | Authorization Code with PKCE; Microsoft hosts the sign-in screens |
+| API client | Kiota | Typed client generated from the API's OpenAPI document |
+| Testing | Vitest, jsdom | Component and service tests through the Angular CLI |
+
+## Development guide
+
+### Add an endpoint (backend)
+
+Endpoints are discovered automatically and appear in Scalar. Each one calls a handler, turns the
+`Result` into an HTTP response, declares its error responses, and requires a permission:
 
 ```csharp
-// Web.Api/Endpoints/Todos/GetById.cs
+// src/backend/Web.Api/Endpoints/Todos/GetById.cs
 internal sealed class GetById : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
@@ -307,119 +166,404 @@ internal sealed class GetById : IEndpoint
             return result.Match(Results.Ok, CustomResults.Problem);
         })
         .Produces<TodoResponse>()
-        .ProducesProblemResponses()
+        .ProducesProblemResponses()            // typed errors in the generated client
         .WithTags(Tags.Todos)
         .HasPermission(PermissionNames.TodosAccess);
     }
 }
 ```
 
-### Email templates (Razor)
+If you change the domain model, add a migration:
 
-Email bodies are Razor components rendered to HTML via `HtmlRenderer`, sent through
-`IEmailService<TModel>`:
+```powershell
+dotnet ef migrations add <MigrationName> --project src/backend/Infrastructure --startup-project src/backend/Web.Api
+```
 
-```csharp
-public sealed class SendWelcomeEmailOnUserProvisioned(
-    IEmailService<WelcomeEmailModel> emailService)
-    : IDomainEventHandler<UserProvisionedDomainEvent>
-{
-    public async Task Handle(UserProvisionedDomainEvent domainEvent, CancellationToken ct)
-    {
-        await emailService.SendAsync(
-            toEmail: "ada@example.com",
-            toName: "Ada Lovelace",
-            model: new WelcomeEmailModel(FirstName: "Ada"),
-            cancellationToken: ct);
-    }
+### Call it from Angular (frontend)
+
+Angular uses the Kiota-generated client, so every call is typed and there is no hand-written HTTP.
+MSAL attaches the access token in one place (`core/api-authentication-provider.ts`):
+
+```typescript
+// src/frontend/src/app/todos/todos-page.component.ts
+private readonly apiClient = inject(ApiClientService).client;
+
+async loadTodos(userId: string) {
+  const todos = await this.apiClient.todos.get({ queryParameters: { userId } });
+  // todos: TodoResponse[]; failures arrive as typed ProblemDetails
 }
 ```
 
-### Regenerating the API client
-
-The TypeScript client under `clients/api-client/` is generated output (gitignored) — never edit
-it by hand. Regenerate it after changing any endpoint or contract:
+After changing an endpoint or contract, regenerate the client:
 
 ```powershell
 ./scripts/generate-api-client.ps1
 ```
 
-This builds `Web.Api` (which exports `src/backend/Web.Api/obj/openapi/Web.Api.json` at build
-time), runs `dotnet kiota generate` against it, and **syncs the result into every frontend that
-consumes it** — currently `src/frontend/src/app/api-client/` (also gitignored). That sync is what
-Angular actually builds against, so always regenerate through this script rather than calling
-`dotnet kiota generate` directly — doing so leaves Angular on a stale client with no error. Kiota
-itself is a pinned local tool (`.config/dotnet-tools.json`) — `dotnet tool restore` picks it up
-automatically, no global install needed.
+The script builds `Web.Api`, generates the client from its OpenAPI document, and copies it into
+`src/frontend/src/app/api-client/`. Always use the script: running `dotnet kiota generate` directly
+leaves Angular on a stale client without any error.
 
-## What's different from the Postgres/custom-auth flavor?
+### Send an email
 
-- **SQL Server** via `Microsoft.EntityFrameworkCore.SqlServer`, orchestrated by the Aspire
-  AppHost (`Aspire.Hosting.SqlServer`) instead of PostgreSQL. PascalCase EF Core conventions —
-  no snake-casing, that's a Postgres idiom.
-- **Microsoft Entra ID** replaces both the hand-rolled `User` entity with its `PasswordHasher` and
-  the ASP.NET Core Identity flavor that preceded this one. There is no credential storage of any
-  kind: `ApplicationDbContext` is a plain `DbContext` and the seven Identity tables are gone.
-- Roles live in the directory, not the database. `Application` sees the caller through
-  `IUserContext` (local id, tenant, App Roles); the local `User` row is a display cache, and
-  authorization never reads it.
-- **Scalar** + the native `Microsoft.AspNetCore.OpenApi` generator instead of Swashbuckle.
-- Integration tests use `Testcontainers.MsSql` instead of `Testcontainers.PostgreSql`.
-- `SSH.NET` and `Microsoft.OpenApi` are pinned in `Directory.Packages.props`
-  (`CentralPackageTransitivePinningEnabled`) — both are transitive dependencies with known
-  high-severity advisories below the pinned versions (GHSA-q939-rpr3-3284, GHSA-v5pm-xwqc-g5wc).
-- A Kiota-generated TypeScript client shared by Angular (and, by design, any future React
-  frontend) instead of hand-written HTTP calls per framework.
+The welcome message is sent after a person's first sign-in:
 
-If you're ready to learn more, check out [**Pragmatic Clean Architecture**](https://www.milanjovanovic.tech/pragmatic-clean-architecture?utm_source=ca-template):
+1. `UserProvisioningMiddleware` creates the local `User` and raises `UserProvisionedDomainEvent`.
+2. `SaveChangesAsync` saves the user, then dispatches the event.
+3. `SendWelcomeEmailOnUserProvisioned` asks `IEmailService<WelcomeEmailModel>` to send it.
+4. `Infrastructure` renders the Razor template to HTML and delivers it over SMTP with MailKit.
 
-- Domain-Driven Design
-- Role-based authorization
-- Permission-based authorization
-- Distributed caching with Redis
-- OpenTelemetry
-- Outbox pattern
-- API Versioning
-- Unit testing
-- Functional testing
-- Integration testing
+The files are organized around the typed model, a view for each email, and a shared layout:
+
+```text
+src/backend/
+├── Application/Abstractions/Email/Models/WelcomeEmailModel.cs
+├── Infrastructure/
+│   ├── Email/
+│   │   ├── IRazorEmailRenderer.cs
+│   │   ├── RazorEmailRenderer.cs
+│   │   └── Templates/WelcomeEmailTemplate.cs
+│   └── Views/
+│       ├── _ViewImports.cshtml
+│       ├── Emails/WelcomeEmail.cshtml
+│       └── Shared/_EmailLayout.cshtml
+└── Web.Api/DependencyInjection.cs
+```
+
+The call chain is `handler → IEmailService<WelcomeEmailModel> → WelcomeEmailTemplate →
+RazorEmailRenderer → WelcomeEmail.cshtml + _EmailLayout.cshtml → IEmailSender`.
+
+**1. Model and view.** The model lives in `Application`; the `.cshtml` view declares its type and
+chooses the shared layout. `_ViewImports.cshtml` imports the model's namespace. Razor HTML-encodes
+`@Model.FirstName`, so a name such as `<Ada>` appears as text rather than markup. A renamed model
+property used by the compiled view fails the build.
+
+```csharp
+// Application/Abstractions/Email/Models/WelcomeEmailModel.cs
+public sealed record WelcomeEmailModel(string FirstName);
+```
+
+```cshtml
+@* Infrastructure/Views/_ViewImports.cshtml (relevant import) *@
+@using Application.Abstractions.Email.Models
+```
+
+```cshtml
+@* Infrastructure/Views/Emails/WelcomeEmail.cshtml *@
+@model WelcomeEmailModel
+
+@{
+    Layout = "/Views/Shared/_EmailLayout.cshtml";
+}
+
+<h1 style="margin:0 0 16px;font-size:20px;color:#111827;">Welcome, @Model.FirstName!</h1>
+<p style="margin:0 0 16px;">Your account has been created. We're glad to have you on board.</p>
+```
+
+The shared layout owns the outer HTML, branding and footer. Its `@RenderBody()` call inserts the
+content of `WelcomeEmail.cshtml`:
+
+```cshtml
+@* Infrastructure/Views/Shared/_EmailLayout.cshtml (excerpt) *@
+@inject IOptions<EmailBrandingOptions> BrandingOptions
+@inject IDateTimeProvider Clock
+
+<table role="presentation" width="480" cellpadding="0" cellspacing="0">
+    <tr>
+        <td style="background-color:@BrandingOptions.Value.PrimaryColor;padding:24px 32px;">
+            @BrandingOptions.Value.AppName
+        </td>
+    </tr>
+    <tr>
+        <td style="padding:32px;">@RenderBody()</td>
+    </tr>
+    <tr>
+        <td>
+            &copy; @Clock.UtcNow.Year @BrandingOptions.Value.AppName.
+            Contact @BrandingOptions.Value.SupportEmail.
+        </td>
+    </tr>
+</table>
+```
+
+**2. Render the view.** `RazorEmailRenderer` finds the compiled view by path and executes it into a
+`StringWriter`. The synthetic `ActionContext` lets MVC render an email outside an HTTP request; its
+`RequestServices` is the current dependency injection scope. The essential implementation is:
+
+```csharp
+internal interface IRazorEmailRenderer
+{
+    Task<string> RenderAsync<TModel>(
+        string viewPath, TModel model, CancellationToken cancellationToken = default)
+        where TModel : notnull;
+}
+
+internal sealed class RazorEmailRenderer(
+    IRazorViewEngine viewEngine,
+    ITempDataProvider tempDataProvider,
+    IModelMetadataProvider metadataProvider,
+    IServiceProvider services) : IRazorEmailRenderer
+{
+    public async Task<string> RenderAsync<TModel>(
+        string viewPath, TModel model, CancellationToken cancellationToken = default)
+        where TModel : notnull
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var actionContext = new ActionContext(
+            new DefaultHttpContext { RequestServices = services },
+            new RouteData(),
+            new ActionDescriptor());
+
+        ViewEngineResult viewResult = viewEngine.GetView(
+            executingFilePath: null, viewPath, isMainPage: true);
+
+        if (!viewResult.Success || viewResult.View is null)
+            throw new InvalidOperationException($"Email view not found: {viewPath}.");
+
+        var viewData = new ViewDataDictionary<TModel>(metadataProvider, new ModelStateDictionary())
+        {
+            Model = model
+        };
+
+        using var writer = new StringWriter();
+        var viewContext = new ViewContext(
+            actionContext,
+            viewResult.View,
+            viewData,
+            new TempDataDictionary(actionContext.HttpContext, tempDataProvider),
+            writer,
+            new HtmlHelperOptions());
+
+        await viewResult.View.RenderAsync(viewContext);
+        cancellationToken.ThrowIfCancellationRequested();
+        return writer.ToString();
+    }
+}
+```
+
+**3. Choose the view and send it.** `WelcomeEmailTemplate` supplies the fixed view path and subject.
+`EmailService<TModel>` takes its `RenderedEmail` and passes the HTML to the configured `IEmailSender`.
+The application handler knows only the recipient and model:
+
+```csharp
+// Infrastructure/Email/Templates/WelcomeEmailTemplate.cs
+internal sealed class WelcomeEmailTemplate(
+    IRazorEmailRenderer renderer,
+    IOptions<EmailBrandingOptions> branding) : IEmailTemplate<WelcomeEmailModel>
+{
+    public async Task<RenderedEmail> RenderAsync(
+        WelcomeEmailModel model, CancellationToken cancellationToken = default)
+    {
+        string html = await renderer.RenderAsync(
+            "/Views/Emails/WelcomeEmail.cshtml", model, cancellationToken);
+
+        return new RenderedEmail($"Welcome to {branding.Value.AppName}!", html);
+    }
+}
+```
+
+```csharp
+// Infrastructure/Email/EmailService.cs (excerpt)
+RenderedEmail email = await template.RenderAsync(model, cancellationToken);
+await sender.SendAsync(
+    new EmailMessage(toEmail, toName, email.Subject, email.HtmlBody),
+    cancellationToken);
+
+// Application/Users/Provisioned/SendWelcomeEmailOnUserProvisioned.cs (excerpt)
+await emailService.SendAsync(
+    recipient.Email,
+    $"{recipient.FirstName} {recipient.LastName}".Trim(),
+    new WelcomeEmailModel(recipient.FirstName),
+    cancellationToken);
+```
+
+**4. Register the compiled views and services.** These are the relevant registrations from the
+existing projects:
+
+```xml
+<!-- Infrastructure/Infrastructure.csproj -->
+<PropertyGroup>
+  <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+</PropertyGroup>
+```
+
+```csharp
+// Web.Api/DependencyInjection.cs, inside AddPresentation
+services.AddControllersWithViews()
+    .AddApplicationPart(typeof(global::Infrastructure.DependencyInjection).Assembly);
+
+// Infrastructure/DependencyInjection.cs, inside AddEmail
+services.AddScoped(typeof(IEmailService<>), typeof(EmailService<>));
+services.AddScoped<IRazorEmailRenderer, RazorEmailRenderer>();
+services.AddScoped<IEmailTemplate<WelcomeEmailModel>, WelcomeEmailTemplate>();
+```
+
+Where the email ends up depends on configuration:
+
+| Configuration found | Sender | Destination |
+|---|---|---|
+| `ConnectionStrings:mailpit` (set by the AppHost) | `SmtpEmailSender` | MailPit inbox |
+| `Smtp:Host` | `SmtpEmailSender` | Your SMTP provider |
+| Neither | `LoggingEmailSender` | Application log only |
+
+Email is best effort: errors are logged and never undo the saved user, and there is no retry
+queue. If delivery must be guaranteed, add a durable queue or an Outbox.
+
+<details>
+<summary>Adding another email</summary>
+
+```csharp
+// 1. Application/Abstractions/Email/Models — the data the view needs
+public sealed record TodoReminderEmailModel(string FirstName, string Description);
+
+// 2. Infrastructure/Email/Templates — the subject and view path
+internal sealed class TodoReminderEmailTemplate(IRazorEmailRenderer renderer)
+    : IEmailTemplate<TodoReminderEmailModel>
+{
+    public async Task<RenderedEmail> RenderAsync(
+        TodoReminderEmailModel model, CancellationToken cancellationToken = default) =>
+        new("A todo is due soon", await renderer.RenderAsync(
+            "/Views/Emails/TodoReminderEmail.cshtml", model, cancellationToken));
+}
+
+// 3. Infrastructure/DependencyInjection.cs, inside AddEmail
+services.AddScoped<IEmailTemplate<TodoReminderEmailModel>, TodoReminderEmailTemplate>();
+```
+
+Create `Infrastructure/Views/Emails/TodoReminderEmail.cshtml` with
+`@model TodoReminderEmailModel`, the shared layout path, and the email body. The renderer is already
+registered once for all email views.
+
+Any handler can then inject `IEmailService<TodoReminderEmailModel>`; `IEmailService<>` is already
+registered as an open generic.
+
+</details>
+
+### Run the tests
+
+```powershell
+dotnet test CleanArchitecture.sln                    # backend; Docker must be running
+cd src/frontend; npm test -- --watch=false           # frontend
+```
+
+<details>
+<summary>More checks</summary>
+
+- `npm run build` in `src/frontend` builds the production bundle.
+- `npm audit` and `npm audit --omit=dev` separate tooling issues from production dependencies.
+- `./scripts/test-clean-setup.ps1` copies the repository to a temporary folder, without generated
+  clients or local secrets, and checks that setup and build work from scratch.
+- `./scripts/test-generate-api-client.ps1` checks that a failed client generation keeps the
+  previous client. It does not need Docker.
+- Frontend tests use simulated DOM; real Entra ID redirects still need a browser and a tenant.
+
+</details>
+
+## Azure deployment
+
+![Azure deployment (prod): Front Door Premium with WAF reaches the internal API and Angular container apps over Private Link; the API reaches Azure SQL through a private endpoint with its own managed identity; each app pulls its image from Container Registry with its own identity](docs/diagrams/azure-deployment.svg)
+
+The `infra/` folder defines the Azure resources with **Bicep**. Each environment has its own
+`.bicepparam` file and is deployed to its own resource group with Azure CLI. Front Door is the only
+public entry: it sends `/api/*` to the API and everything else to Angular, through Private Link
+connections that must be approved after the first deployment.
+
+| Environment | API and web replicas | Azure SQL | WAF | Availability |
+|---|---|---|---|---|
+| `dev` | 1, fixed | Basic | Detection | Single replica, no zone redundancy |
+| `staging` | 1 to 3, automatic | S1 | Detection | No zone redundancy |
+| `prod` | 2 to 10, automatic | General Purpose, 2 vCores | Prevention | Zone-redundant Container Apps and SQL |
+
+Container Apps scales each app on concurrent HTTP requests (10 per replica by default). Front Door
+routes and protects traffic; there is one origin per route and no second region.
+
+Required variables, permissions, Private Link approval and deployment commands are in
+[infra/README.md](infra/README.md).
+
+## Reference
+
+<details>
+<summary>Machine requirements and common problems</summary>
+
+- SQL Server in a container, the Docker VM, the API and the Angular dev server need about
+  **4–5 GB of free RAM**.
+- If memory runs out, the host kills processes. The Aspire console still says the application
+  started, but requests to the API hang instead of being refused. Close other apps and restart.
+- The first run pulls the SQL Server 2025 image, which takes a few minutes.
+
+</details>
+
+<details>
+<summary>Request processing, limits and health checks</summary>
+
+- Authentication runs before rate limiting, permission checks and user provisioning.
+- Rate limits use the tenant and object ids for signed-in users and the connection IP for anonymous
+  requests. Forwarded headers are not trusted automatically.
+- Limits apply **per API instance**: each replica has its own quota, so they are not a shared
+  global limit.
+- `/alive` checks the process and `/ready` checks SQL with a separate connection and short
+  timeouts. Both are public and skip rate limiting and user provisioning.
+- `/auth-config` gives Angular its sign-in settings. It skips provisioning but is rate limited.
+- Deactivated local users are rejected on protected endpoints.
+- User endpoints need a valid `oid` and `tid`, the delegated `access_as_user` scope and an
+  assigned role. Application principals are rejected. Only the Development scheme is exempt from
+  the scope check.
+- `GET /users` defaults to page 1, size 20. Pages start at 1, sizes go from 1 to 100, and invalid
+  values return `400` with `Users.InvalidPagination`. Results are ordered by first name, last
+  name, then id.
+
+</details>
+
+<details>
+<summary>Configuration outside Development</summary>
+
+- Staging and production need all three `AzureAd` values: `TenantId`, `ClientId` and
+  `SpaClientId`. If any is missing, the API returns `503` and never falls back to development
+  sign-in.
+- Angular needs no configuration of its own: it reads `GET /auth-config` from the API.
+- `setup-entra.ps1` stores tenant-specific ids in .NET user secrets, never in the repository.
+  Review the app registrations and roles it creates before using them in a shared tenant.
+- Configure SMTP (`Smtp:*`) before relying on email delivery.
+
+</details>
+
+<details>
+<summary>Differences from the PostgreSQL / custom-auth version</summary>
+
+- **SQL Server** instead of PostgreSQL, with PascalCase EF Core naming instead of snake_case.
+- **Entra ID** replaces the hand-rolled `User` with `PasswordHasher` and the earlier ASP.NET Core
+  Identity version. There is no credential storage: `ApplicationDbContext` is a plain `DbContext`.
+- Roles live in the directory. `Application` sees the caller through `IUserContext` (local id,
+  tenant, app roles); the local `User` row is only a display cache.
+- **Scalar** and the built-in OpenAPI generator replace Swashbuckle.
+- Integration tests use `Testcontainers.MsSql`.
+- A Kiota-generated TypeScript client replaces hand-written HTTP calls.
+- `SSH.NET` and `Microsoft.OpenApi` are pinned in `Directory.Packages.props` because older
+  transitive versions have high-severity advisories (GHSA-q939-rpr3-3284, GHSA-v5pm-xwqc-g5wc).
+
+</details>
 
 ## Claude Code skills
 
-This repo ships a skill pack in `.claude/skills/` that teaches [Claude Code](https://claude.com/claude-code)
-this template's conventions — the four backend layers, the `IApplicationDbContext` boundary, the
-`.ProducesProblemResponses()` requirement, and the Kiota → Angular sync — so features it scaffolds
-match what's already here instead of drifting into a generic pattern.
+`.claude/skills/` contains skills that teach [Claude Code](https://claude.com/claude-code) this
+template's conventions, so new features follow the existing layers and contracts. Claude Code loads
+them automatically when you open the repository; if one doesn't trigger, call it with
+`/skill-name`.
 
-**How it works:** the skills live in `.claude/skills/` and need no install step — open this repo in
-Claude Code and it lists them automatically at the start of every session. Claude is expected to
-pick the matching skill on its own when a request fits one, e.g. "add support for tracking
-invoices" → `add-entity`. That auto-triggering isn't a hard guarantee — it depends on how closely
-your request's wording matches the skill's description — so if one doesn't fire when you expect,
-invoke it explicitly with `/skill-name`. This only works inside Claude Code (or another tool with
-the same skill-discovery mechanism); a teammate on a different assistant can still open the plain
-Markdown files directly.
-
-| Skill | Invoke with | What it does |
+| Skill | Example | What it does |
 |---|---|---|
-| **add-entity** | `/add-entity Project with a name and owner` | Domain entity, error catalog, domain events, EF configuration, and migration — including the `DbSet` wiring across all three places it's needed (`IApplicationDbContext`, `ApplicationDbContext`, `TestDbContext`). |
-| **add-feature** | `/add-feature archive a todo item` | A full use case across `Application` (command/query, handler, validator) and `Web.Api` (endpoint with typed `ProblemDetails`), plus — on request — the Kiota regen and an Angular page wired to it. |
-| **add-tests** | `/add-tests CompleteTodoCommand` | Backfills handler unit tests, validator tests, and HTTP integration tests, or establishes an Angular/Jasmine testing baseline. |
-| **clean-architecture-review** | `/clean-architecture-review` | Reviews a diff against this template's conventions before you commit — layer boundaries, endpoint contracts, permission wiring, Kiota freshness. |
+| **add-entity** | `/add-entity Project with a name and owner` | Entity, errors, domain events, EF configuration and migration |
+| **add-feature** | `/add-feature archive a todo item` | Command or query, handler, validator and endpoint; optionally the client regeneration and an Angular page |
+| **add-tests** | `/add-tests CompleteTodoCommand` | Handler, validator and integration tests, or an Angular test baseline |
+| **clean-architecture-review** | `/clean-architecture-review` | Reviews a diff against the template's conventions before you commit |
 
-```
-/add-feature let a user snooze a todo until a given date
-```
-
-runs the whole chain: the `Application`/`Web.Api` slice, the Kiota regen, and (if you want it) the
-Angular control — finish with `/add-tests SnoozeTodoCommand` and `/clean-architecture-review`
-before committing. Full details, including how to copy this skill pack into another project based
-on this template, are in [`.claude/skills/README.md`](.claude/skills/README.md).
+Details, including how to reuse the skills in another project, are in
+[.claude/skills/README.md](.claude/skills/README.md).
 
 ## License
 
-MIT — see [LICENSE](./LICENSE). This template is derived from
-[amantinband/clean-architecture](https://github.com/amantinband/clean-architecture)
-(Copyright (c) 2023 Amichai Mantinband).
+[MIT License](./LICENSE). Copyright (c) 2023 Amichai Mantinband; 2026 Alvaro I. Hernández Rodríguez.
 
-Stay awesome!
+The backend started from Milan Jovanović's free
+[Clean Architecture Template](https://www.milanjovanovic.tech/templates/clean-architecture).
