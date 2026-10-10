@@ -48,6 +48,7 @@ public sealed class PermissionProviderTests
         HashSet<string> permissions = PermissionProvider.GetForRoles([RoleNames.Member]);
 
         permissions.ShouldNotContain(PermissionNames.UsersReadAll);
+        permissions.ShouldNotContain(PermissionNames.UsersManage);
     }
 
     [Fact]
@@ -56,7 +57,8 @@ public sealed class PermissionProviderTests
         HashSet<string> permissions = PermissionProvider.GetForRoles([RoleNames.Admin]);
 
         permissions.ShouldBe(
-            [PermissionNames.UsersAccess, PermissionNames.TodosAccess, PermissionNames.UsersReadAll],
+            [PermissionNames.UsersAccess, PermissionNames.TodosAccess, PermissionNames.UsersReadAll,
+                PermissionNames.UsersManage],
             ignoreOrder: true);
     }
 
@@ -86,7 +88,8 @@ public sealed class PermissionProviderTests
         HashSet<string> permissions = PermissionProvider.GetForRoles([RoleNames.Member, RoleNames.Admin]);
 
         permissions.ShouldBe(
-            [PermissionNames.UsersAccess, PermissionNames.TodosAccess, PermissionNames.UsersReadAll],
+            [PermissionNames.UsersAccess, PermissionNames.TodosAccess, PermissionNames.UsersReadAll,
+                PermissionNames.UsersManage],
             ignoreOrder: true);
     }
 }

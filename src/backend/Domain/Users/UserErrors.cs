@@ -20,4 +20,8 @@ public static class UserErrors
     public static readonly Error Deactivated = Error.Forbidden(
         "Users.Deactivated",
         "This account has been deactivated.");
+
+    public static readonly Error CannotDeactivateSelf = Error.Conflict(
+        "Users.CannotDeactivateSelf",
+        "Administrators cannot deactivate their own account.");
 }

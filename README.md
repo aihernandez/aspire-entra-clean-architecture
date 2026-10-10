@@ -105,6 +105,14 @@ architecture tests in `tests/ArchitectureTests` fail the build if a layer breaks
 - **Local user record.** A person's first request creates a `User` row from the token: a local id,
   the `(EntraObjectId, EntraTenantId)` pair, a cached name and email, and `IsActive`. It holds no
   password and no roles, and rows are deactivated, never deleted.
+- **User administration.** The Users page lists the people who have signed in, with 20 users per
+  page, status and actions for administrators. `GET /users` accepts `pageNumber`, `pageSize` (1–100)
+  and `includeInactive`; the query is tenant-scoped, read-only, projected to a DTO, ordered by
+  name and local id, and backed by a covering SQL index. `PUT /users/{userId}/status` changes local
+  access. The page's **Delete** action calls `DELETE /users/{userId}`, which deactivates access
+  without removing the row or its historical references. An administrator can reactivate it from
+  the detail page. The API refuses self-deactivation. Names, email and role assignments remain
+  managed in Entra ID.
 - **Local development.** With `AzureAd:ClientId` empty, a Development-only scheme signs every
   request in as the user in the `DevelopmentAuthentication` section of
   `src/backend/Web.Api/appsettings.Development.json`. Set its `Roles` to `Member` to see what a

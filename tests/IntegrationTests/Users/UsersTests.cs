@@ -135,6 +135,42 @@ public sealed class UsersTests(IntegrationTestWebAppFactory factory) : BaseInteg
     }
 
     [Fact]
+    public async Task Administrator_Should_DeactivateAndReactivateUser_WhileKeepingTheRow()
+    {
+        using HttpClient member = CreateMemberClient(out _);
+        CurrentUserDto? target = await member.GetFromJsonAsync<CurrentUserDto>("users/me");
+        using HttpClient admin = CreateAdminClient();
+
+        using HttpClient anotherMember = CreateMemberClient(out _);
+        HttpResponseMessage forbidden = await anotherMember.DeleteAsync($"users/{target!.Id}");
+        forbidden.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+
+        HttpResponseMessage deleted = await admin.DeleteAsync($"users/{target.Id}");
+        deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await member.GetAsync("users/me")).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+
+        PagedUsers? visible = await admin.GetFromJsonAsync<PagedUsers>(
+            "users?pageNumber=1&pageSize=100&includeInactive=true");
+        visible!.Items.Single(user => user.Id == target.Id).IsActive.ShouldBeFalse();
+
+        HttpResponseMessage restored = await admin.PutAsJsonAsync(
+            $"users/{target.Id}/status", new { isActive = true });
+        restored.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await member.GetAsync("users/me")).StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Administrator_Should_NotDeactivateOwnAccount()
+    {
+        using HttpClient admin = CreateAdminClient();
+        CurrentUserDto? self = await admin.GetFromJsonAsync<CurrentUserDto>("users/me");
+
+        HttpResponseMessage response = await admin.DeleteAsync($"users/{self!.Id}");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
     public async Task Endpoints_Should_ReturnForbidden_WhenTokenCarriesNoAppRole()
     {
         // A person who exists in the tenant but was never assigned to this application. Validating

@@ -31,6 +31,7 @@ public static class PermissionProvider
         if (isAdmin)
         {
             permissions.Add(PermissionNames.UsersReadAll);
+            permissions.Add(PermissionNames.UsersManage);
         }
 
         return permissions;

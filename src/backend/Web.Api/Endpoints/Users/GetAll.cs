@@ -14,9 +14,10 @@ internal sealed class GetAll : IEndpoint
             IQueryHandler<GetUsersQuery, PagedResponse<UserResponse>> handler,
             CancellationToken cancellationToken,
             int pageNumber = 1,
-            int pageSize = 20) =>
+            int pageSize = 20,
+            bool includeInactive = false) =>
         {
-            var query = new GetUsersQuery(pageNumber, pageSize);
+            var query = new GetUsersQuery(pageNumber, pageSize, includeInactive);
 
             Result<PagedResponse<UserResponse>> result = await handler.Handle(query, cancellationToken);
 

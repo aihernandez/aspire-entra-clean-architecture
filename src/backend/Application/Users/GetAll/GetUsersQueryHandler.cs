@@ -1,3 +1,4 @@
+using Application.Abstractions.Authentication;
 using Application.Abstractions.Data;
 using Application.Abstractions.Messaging;
 using Domain.Users;
@@ -11,7 +12,7 @@ namespace Application.Users.GetAll;
 /// who have signed in at least once (there is no directory-wide enumeration without Microsoft
 /// Graph — see EntraIdMigration.md, D10). The UI is expected to say so.
 /// </summary>
-internal sealed class GetUsersQueryHandler(IApplicationDbContext context)
+internal sealed class GetUsersQueryHandler(IApplicationDbContext context, IUserContext userContext)
     : IQueryHandler<GetUsersQuery, PagedResponse<UserResponse>>
 {
     private const int MaxPageSize = 100;
@@ -26,7 +27,13 @@ internal sealed class GetUsersQueryHandler(IApplicationDbContext context)
             return Result.Failure<PagedResponse<UserResponse>>(UserErrors.InvalidPagination);
         }
 
-        IQueryable<Domain.Users.User> users = context.Users.AsNoTracking().Where(user => user.IsActive);
+        IQueryable<Domain.Users.User> users = context.Users
+            .AsNoTracking()
+            .Where(user => user.EntraTenantId == userContext.TenantId);
+        if (!query.IncludeInactive)
+        {
+            users = users.Where(user => user.IsActive);
+        }
 
         int totalCount = await users.CountAsync(cancellationToken);
 
@@ -41,7 +48,8 @@ internal sealed class GetUsersQueryHandler(IApplicationDbContext context)
                 Id = user.Id,
                 Email = user.Email,
                 FirstName = user.FirstName,
-                LastName = user.LastName
+                LastName = user.LastName,
+                IsActive = user.IsActive
             })
             .ToListAsync(cancellationToken);
 

@@ -21,7 +21,7 @@ internal sealed class GetUserByIdQueryHandler(IApplicationDbContext context, IUs
 
         UserDetailResponse? user = await context.Users
             .AsNoTracking()
-            .Where(user => user.Id == query.UserId)
+            .Where(user => user.Id == query.UserId && user.EntraTenantId == userContext.TenantId)
             .Select(user => new UserDetailResponse
             {
                 Id = user.Id,
