@@ -40,6 +40,7 @@ export class CurrentUserService {
 
   readonly roles = () => this.currentUser()?.roles ?? [];
   readonly canReadUsers = () => this.currentUser()?.permissions.includes('users:read-all') ?? false;
+  readonly canManageUsers = () => this.currentUser()?.permissions.includes('users:manage') ?? false;
 
   load(): Promise<CurrentUser | null> {
     if (this.currentUser()) {

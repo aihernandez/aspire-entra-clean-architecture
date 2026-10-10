@@ -13,6 +13,9 @@ public static class PermissionNames
     /// <summary>List other people and read their profiles. Administrators only.</summary>
     public const string UsersReadAll = "users:read-all";
 
+    /// <summary>Activate or deactivate application access. Administrators only.</summary>
+    public const string UsersManage = "users:manage";
+
     /// <summary>Use the todo feature. Granted to every assigned user of the application.</summary>
     public const string TodosAccess = "todos:access";
 }

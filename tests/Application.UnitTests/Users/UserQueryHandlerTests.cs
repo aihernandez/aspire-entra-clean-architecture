@@ -10,11 +10,13 @@ namespace Application.UnitTests.Users;
 
 public sealed class UserQueryHandlerTests : BaseHandlerTest
 {
+    private static readonly Guid TenantId = Guid.NewGuid();
+
     private static User NewUser(string firstName, bool isActive = true) => new()
     {
         Id = Guid.NewGuid(),
         EntraObjectId = Guid.NewGuid(),
-        EntraTenantId = Guid.NewGuid(),
+        EntraTenantId = TenantId,
         Email = $"{firstName}@example.com",
         FirstName = firstName,
         LastName = "Tester",
@@ -25,6 +27,7 @@ public sealed class UserQueryHandlerTests : BaseHandlerTest
     {
         IUserContext userContext = Substitute.For<IUserContext>();
         userContext.UserId.Returns(userId);
+        userContext.TenantId.Returns(TenantId);
         userContext.Roles.Returns(roles);
 
         return userContext;
@@ -39,7 +42,7 @@ public sealed class UserQueryHandlerTests : BaseHandlerTest
         context.Users.AddRange(NewUser("Active"), NewUser("Gone", isActive: false));
         await context.SaveChangesAsync();
 
-        var handler = new GetUsersQueryHandler(context);
+        var handler = new GetUsersQueryHandler(context, UserContextFor(Guid.NewGuid(), RoleNames.Admin));
 
         // Act
         Result<PagedResponse<UserResponse>> result = await handler.Handle(new GetUsersQuery(), CancellationToken.None);
@@ -49,6 +52,38 @@ public sealed class UserQueryHandlerTests : BaseHandlerTest
         result.Value.Items.Count.ShouldBe(1);
         result.Value.Items[0].FirstName.ShouldBe("Active");
         result.Value.TotalCount.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task GetUsers_Should_IncludeDeactivatedPeople_ForManagementPage()
+    {
+        await using TestDbContext context = CreateDbContext();
+        context.Users.AddRange(NewUser("Active"), NewUser("Gone", isActive: false));
+        await context.SaveChangesAsync();
+        var handler = new GetUsersQueryHandler(context, UserContextFor(Guid.NewGuid(), RoleNames.Admin));
+
+        Result<PagedResponse<UserResponse>> result = await handler.Handle(
+            new GetUsersQuery(1, 20, IncludeInactive: true), CancellationToken.None);
+
+        result.Value.TotalCount.ShouldBe(2);
+        result.Value.Items.Single(user => user.FirstName == "Gone").IsActive.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task GetUsers_Should_NotListAnotherTenantsPeople()
+    {
+        await using TestDbContext context = CreateDbContext();
+        User otherTenant = NewUser("OtherTenant");
+        otherTenant.EntraTenantId = Guid.NewGuid();
+        context.Users.AddRange(NewUser("Local"), otherTenant);
+        await context.SaveChangesAsync();
+        var handler = new GetUsersQueryHandler(context, UserContextFor(Guid.NewGuid(), RoleNames.Admin));
+
+        Result<PagedResponse<UserResponse>> result = await handler.Handle(
+            new GetUsersQuery(1, 20, IncludeInactive: true), CancellationToken.None);
+
+        result.Value.TotalCount.ShouldBe(1);
+        result.Value.Items.ShouldHaveSingleItem().FirstName.ShouldBe("Local");
     }
 
     [Theory]
@@ -67,7 +102,7 @@ public sealed class UserQueryHandlerTests : BaseHandlerTest
         context.Users.Add(NewUser("Solo"));
         await context.SaveChangesAsync();
 
-        var handler = new GetUsersQueryHandler(context);
+        var handler = new GetUsersQueryHandler(context, UserContextFor(Guid.NewGuid(), RoleNames.Admin));
 
         Result<PagedResponse<UserResponse>> result =
             await handler.Handle(new GetUsersQuery(pageNumber, pageSize), CancellationToken.None);
@@ -88,7 +123,7 @@ public sealed class UserQueryHandlerTests : BaseHandlerTest
         await using TestDbContext context = CreateDbContext();
         context.Users.Add(NewUser("Solo"));
         await context.SaveChangesAsync();
-        var handler = new GetUsersQueryHandler(context);
+        var handler = new GetUsersQueryHandler(context, UserContextFor(Guid.NewGuid(), RoleNames.Admin));
 
         Result<PagedResponse<UserResponse>> result =
             await handler.Handle(new GetUsersQuery(pageNumber, pageSize), CancellationToken.None);
@@ -110,7 +145,7 @@ public sealed class UserQueryHandlerTests : BaseHandlerTest
         second.Id = Guid.Parse("00000000-0000-0000-0000-000000000002");
         context.Users.AddRange(second, first);
         await context.SaveChangesAsync();
-        var handler = new GetUsersQueryHandler(context);
+        var handler = new GetUsersQueryHandler(context, UserContextFor(Guid.NewGuid(), RoleNames.Admin));
 
         Result<PagedResponse<UserResponse>> pageOne = await handler.Handle(new GetUsersQuery(1, 1), CancellationToken.None);
         Result<PagedResponse<UserResponse>> pageTwo = await handler.Handle(new GetUsersQuery(2, 1), CancellationToken.None);
